@@ -207,6 +207,7 @@ static Client *nexttiled(Client *c);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
+static void restart(const Arg *arg);
 static Monitor *recttomon(int x, int y, int w, int h);
 static void resize(Client *c, int x, int y, int w, int h, Bool interact);
 static void resizeclient(Client *c, int x, int y, int w, int h);
@@ -280,6 +281,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 };
 static Atom wmatom[WMLast], netatom[NetLast];
 static Bool running = True;
+static Bool dorestart = False;
 static Cursor cursor[CurLast];
 static Display *dpy;
 static DC dc;
@@ -1340,6 +1342,12 @@ quit(const Arg *arg) {
 	running = False;
 }
 
+void
+restart(const Arg *arg) {
+	dorestart = True;
+	running = False;
+}
+
 Monitor *
 recttomon(int x, int y, int w, int h) {
 	Monitor *m, *r = selmon;
@@ -2181,5 +2189,8 @@ main(int argc, char *argv[]) {
 	run();
 	cleanup();
 	XCloseDisplay(dpy);
+	if (dorestart) {
+		execvp(argv[0], argv);
+	}
 	return EXIT_SUCCESS;
 }
