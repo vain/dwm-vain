@@ -1713,13 +1713,17 @@ sigchld(int unused) {
 void
 spawn(const Arg *arg) {
 	if(fork() == 0) {
-		if(dpy)
-			close(ConnectionNumber(dpy));
-		setsid();
-		execvp(((char **)arg->v)[0], (char **)arg->v);
-		fprintf(stderr, "dwm: execvp %s", ((char **)arg->v)[0]);
-		perror(" failed");
-		exit(EXIT_SUCCESS);
+		if (fork() == 0) {
+			if(dpy)
+				close(ConnectionNumber(dpy));
+			setsid();
+			execvp(((char **)arg->v)[0], (char **)arg->v);
+			fprintf(stderr, "dwm: execvp %s", ((char **)arg->v)[0]);
+			perror(" failed");
+			exit(EXIT_SUCCESS);
+		}
+		else
+			exit(EXIT_SUCCESS);
 	}
 }
 
