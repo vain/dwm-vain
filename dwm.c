@@ -201,6 +201,7 @@ static void killclient(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
 static void maprequest(XEvent *e);
+static void maximizefloater(const Arg *arg);
 static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
@@ -1203,6 +1204,16 @@ maprequest(XEvent *e) {
 		return;
 	if(!wintoclient(ev->window))
 		manage(ev->window, &wa);
+}
+
+void
+maximizefloater(const Arg *arg) {
+	if(!selmon->sel || selmon->sel->isfullscreen || !selmon->sel->isfloating)
+		return;
+	resize(selmon->sel,
+			selmon->wx, selmon->wy,
+			selmon->ww - 2 * selmon->sel->bw, selmon->wh - 2 * selmon->sel->bw,
+			False);
 }
 
 void
