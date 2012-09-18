@@ -1334,7 +1334,7 @@ ppres(Monitor *m) {
 	char *cmin, *cmax, *cthis;
 	int imin, imax, ithis;
 	int i, slaves = 0, slots, thisslot;
-	double xoffrel, mainrel = 0.5;
+	float xoffrel;
 
 	for(c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
 		XGetClassHint(dpy, c->win, &ch);
@@ -1361,13 +1361,13 @@ ppres(Monitor *m) {
 				slots = imax - imin + 1;
 				thisslot = ithis - imin;
 
-				xoffrel = thisslot / (double)slots;
+				xoffrel = thisslot / (float)slots;
 
 				resize(c,
 				       m->wx + xoffrel * m->ww,
 				       m->wy,
 				       1.0 / slots * m->ww - 2 * c->bw,
-				       mainrel * m->wh - 2 * c->bw,
+				       selmon->mfact * m->wh - 2 * c->bw,
 				       False);
 			}
 		}
@@ -1390,10 +1390,10 @@ ppres(Monitor *m) {
 		if(strcmp(class, "Showpdf") != 0)
 		{
 			resize(c,
-			       m->wx + (i / (double)slaves) * m->ww,
-			       m->wy + mainrel * m->wh,
+			       m->wx + (i / (float)slaves) * m->ww,
+			       m->wy + selmon->mfact * m->wh,
 			       1.0 / slaves * m->ww - 2 * c->bw,
-			       m->wh - mainrel * m->wh - 2 * c->bw,
+			       m->wh - selmon->mfact * m->wh - 2 * c->bw,
 			       False);
 			i++;
 		}
