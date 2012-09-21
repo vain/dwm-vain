@@ -207,7 +207,6 @@ static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static Client *nexttiled(Client *c);
 static void pop(Client *);
-static void ppres(Monitor *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
 static void restart(const Arg *arg);
@@ -228,6 +227,7 @@ static void setmfact(const Arg *arg);
 static void setup(void);
 static void showhide(Client *c);
 static void sigchld(int unused);
+static void slinp(Monitor *);
 static void spawn(const Arg *arg);
 static void swapfocus();
 static void tag(const Arg *arg);
@@ -1327,87 +1327,6 @@ pop(Client *c) {
 }
 
 void
-ppres(Monitor *m) {
-	Client *c;
-	XClassHint ch = { NULL, NULL };
-	const char *class, *instance;
-	char *cmin, *cmax, *cthis;
-	int imin, imax, ithis;
-	int i, slaves = 0, slots, thisslot;
-	float xoffrel;
-
-	for(c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
-		XGetClassHint(dpy, c->win, &ch);
-		class    = ch.res_class ? ch.res_class : broken;
-		instance = ch.res_name  ? ch.res_name  : broken;
-
-		if(strcmp(class, "Showpdf") == 0) {
-			if(strcmp(instance, "projector") == 0) {
-				c->isfloating = 1;
-			}
-			else {
-				cmin = strdup(instance);
-				cmax = strchr(cmin, '_');
-				cthis = strrchr(cmin, '_');
-				*cmax = 0;
-				*cthis = 0;
-				cmax++;
-				cthis++;
-				imin = atoi(cmin);
-				imax = atoi(cmax);
-				ithis = atoi(cthis);
-				free(cmin);
-
-				slots = imax - imin + 1;
-				thisslot = ithis - imin;
-
-				xoffrel = thisslot / (float)slots;
-
-				resize(c,
-				       m->wx + xoffrel * m->ww,
-				       m->wy,
-				       1.0 / slots * m->ww - 2 * c->bw,
-				       selmon->mfact * m->wh - 2 * c->bw,
-				       False);
-			}
-		}
-		else
-			slaves++;
-
-		if(ch.res_class)
-			XFree(ch.res_class);
-		if(ch.res_name)
-			XFree(ch.res_name);
-		ch.res_class = NULL;
-		ch.res_name = NULL;
-	}
-
-	i = 0;
-	for(c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
-		XGetClassHint(dpy, c->win, &ch);
-		class = ch.res_class ? ch.res_class : broken;
-
-		if(strcmp(class, "Showpdf") != 0)
-		{
-			resize(c,
-			       m->wx + (i / (float)slaves) * m->ww,
-			       m->wy + selmon->mfact * m->wh,
-			       1.0 / slaves * m->ww - 2 * c->bw,
-			       m->wh - selmon->mfact * m->wh - 2 * c->bw,
-			       False);
-			i++;
-		}
-
-		if(ch.res_class)
-			XFree(ch.res_class);
-		if(ch.res_name)
-			XFree(ch.res_name);
-		ch.res_class = NULL;
-		ch.res_name = NULL;
-	}
-}
-
-void
 propertynotify(XEvent *e) {
 	Client *c;
 	Window trans;
@@ -1810,6 +1729,87 @@ sigchld(int unused) {
 	if(signal(SIGCHLD, sigchld) == SIG_ERR)
 		die("Can't install SIGCHLD handler");
 	while(0 < waitpid(-1, NULL, WNOHANG));
+}
+
+void
+slinp(Monitor *m) {
+	Client *c;
+	XClassHint ch = { NULL, NULL };
+	const char *class, *instance;
+	char *cmin, *cmax, *cthis;
+	int imin, imax, ithis;
+	int i, slaves = 0, slots, thisslot;
+	float xoffrel;
+
+	for(c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
+		XGetClassHint(dpy, c->win, &ch);
+		class    = ch.res_class ? ch.res_class : broken;
+		instance = ch.res_name  ? ch.res_name  : broken;
+
+		if(strcmp(class, "Showpdf") == 0) {
+			if(strcmp(instance, "projector") == 0) {
+				c->isfloating = 1;
+			}
+			else {
+				cmin = strdup(instance);
+				cmax = strchr(cmin, '_');
+				cthis = strrchr(cmin, '_');
+				*cmax = 0;
+				*cthis = 0;
+				cmax++;
+				cthis++;
+				imin = atoi(cmin);
+				imax = atoi(cmax);
+				ithis = atoi(cthis);
+				free(cmin);
+
+				slots = imax - imin + 1;
+				thisslot = ithis - imin;
+
+				xoffrel = thisslot / (float)slots;
+
+				resize(c,
+				       m->wx + xoffrel * m->ww,
+				       m->wy,
+				       1.0 / slots * m->ww - 2 * c->bw,
+				       selmon->mfact * m->wh - 2 * c->bw,
+				       False);
+			}
+		}
+		else
+			slaves++;
+
+		if(ch.res_class)
+			XFree(ch.res_class);
+		if(ch.res_name)
+			XFree(ch.res_name);
+		ch.res_class = NULL;
+		ch.res_name = NULL;
+	}
+
+	i = 0;
+	for(c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
+		XGetClassHint(dpy, c->win, &ch);
+		class = ch.res_class ? ch.res_class : broken;
+
+		if(strcmp(class, "Showpdf") != 0)
+		{
+			resize(c,
+			       m->wx + (i / (float)slaves) * m->ww,
+			       m->wy + selmon->mfact * m->wh,
+			       1.0 / slaves * m->ww - 2 * c->bw,
+			       m->wh - selmon->mfact * m->wh - 2 * c->bw,
+			       False);
+			i++;
+		}
+
+		if(ch.res_class)
+			XFree(ch.res_class);
+		if(ch.res_name)
+			XFree(ch.res_name);
+		ch.res_class = NULL;
+		ch.res_name = NULL;
+	}
 }
 
 void
