@@ -1,1 +1,1 @@
-/home/void/work/dotfiles/dwm-config.h
+../../dotfiles-pub/dwm-config.h
