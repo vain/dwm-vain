@@ -1963,12 +1963,16 @@ textnw(const char *text, unsigned int len) {
 
 void
 tile(Monitor *m) {
-	unsigned int i, n, h, mw, my, ty, r;
+	unsigned int i, n, h, mw, my, ty, r, cg;
 	Client *c;
 
 	for(n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
 	if(n == 0)
 		return;
+
+	/* No useless gap when there's only one client. Plays well with the
+	 * noborder patch. */
+	cg = n == 1 ? 0 : gappx;
 
 	if(n > m->nmaster)
 		mw = m->nmaster ? m->ww * m->mfact : 0;
@@ -1991,17 +1995,35 @@ tile(Monitor *m) {
 		}
 		if(i < m->nmaster) {
 			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
-			resize(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), False);
+			resize(c,
+			       m->wx + cg,
+			       m->wy + my + cg,
+			       mw - (2*c->bw) - (2*cg),
+			       h - (2*c->bw) - (2*cg),
+			       False);
 			if(r)
-				resizeclient(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw));
-			my += HEIGHT(c);
+				resizeclient(c,
+				             m->wx + cg,
+				             m->wy + my + cg,
+				             mw - (2*c->bw) - (2*cg),
+				             h - (2*c->bw) - (2*cg));
+			my += HEIGHT(c) + cg;
 		}
 		else {
 			h = (m->wh - ty) / (n - i);
-			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), False);
+			resize(c,
+			       m->wx + mw,
+			       m->wy + ty + cg,
+			       m->ww - mw - (2*c->bw) - cg,
+			       h - (2*c->bw) - (2*cg),
+			       False);
 			if(r)
-				resizeclient(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw));
-			ty += HEIGHT(c);
+				resizeclient(c,
+				             m->wx + mw,
+				             m->wy + ty + cg,
+				             m->ww - mw - (2*c->bw) - cg,
+				             h - (2*c->bw) - (2*cg));
+			ty += HEIGHT(c) + cg;
 		}
 	}
 }
