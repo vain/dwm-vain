@@ -739,6 +739,7 @@ drawbar(Monitor *m) {
 			urg |= c->tags;
 	}
 	dc.x = 0;
+	dc.y = m->topbar ? 0 : 1;
 	for(i = 0; i < LENGTH(tags); i++) {
 		dc.w = TEXTW(tags[i]);
 		col = m->tagset[m->seltags] & 1 << i ? dc.sel : dc.norm;
@@ -772,6 +773,14 @@ drawbar(Monitor *m) {
 		else
 			drawtext(NULL, dc.norm, False);
 	}
+
+	/* Draw border. */
+	XSetForeground(dpy, dc.gc, dc.norm[ColFG]);
+	if (topbar)
+		XDrawLine(dpy, dc.drawable, dc.gc, 0, bh - 1, m->ww, bh - 1);
+	else
+		XDrawLine(dpy, dc.drawable, dc.gc, 0, 0, m->ww, 0);
+
 	XCopyArea(dpy, dc.drawable, m->barwin, dc.gc, 0, 0, m->ww, bh, 0, 0);
 	XSync(dpy, False);
 }
@@ -1641,7 +1650,7 @@ setup(void) {
 	initfont(font);
 	sw = DisplayWidth(dpy, screen);
 	sh = DisplayHeight(dpy, screen);
-	bh = dc.h = dc.font.height + 2;
+	bh = dc.h = dc.font.height + 3;
 	updategeom();
 	/* init atoms */
 	wmatom[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
