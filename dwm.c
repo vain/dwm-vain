@@ -476,7 +476,8 @@ buttonpress(XEvent *e) {
 
 void
 centerfloater(const Arg *arg) {
-	if(!selmon->sel || selmon->sel->isfullscreen || !selmon->sel->isfloating)
+	if(!selmon->sel || selmon->sel->isfullscreen ||
+	   !(selmon->sel->isfloating || !selmon->lt[selmon->sellt]->arrange))
 		return;
 	resize(selmon->sel,
 			selmon->wx + 0.5 * (selmon->ww - selmon->sel->w),
@@ -1231,7 +1232,8 @@ maprequest(XEvent *e) {
 
 void
 maximizefloater(const Arg *arg) {
-	if(!selmon->sel || selmon->sel->isfullscreen || !selmon->sel->isfloating)
+	if(!selmon->sel || selmon->sel->isfullscreen ||
+	   !(selmon->sel->isfloating || !selmon->lt[selmon->sellt]->arrange))
 		return;
 	resize(selmon->sel,
 			selmon->wx, selmon->wy,
