@@ -754,6 +754,8 @@ drawbar(Monitor *m) {
 	dc.x = 0;
 	dc.y = m->topbar ? 0 : 1;
 	for(i = 0; i < LENGTH(tags); i++) {
+		if (!((occ | m->tagset[m->seltags]) & 1 << i))
+			continue;
 		dc.w = TEXTW(tags[i]);
 		col = m->tagset[m->seltags] & 1 << i ? dc.sel : dc.norm;
 		drawtext(tags[i], col, urg & 1 << i);
