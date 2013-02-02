@@ -225,6 +225,7 @@ static void setfullscreen(Client *c, Bool fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setup(void);
+static void shiftmask(unsigned int *m, int dir);
 static void shiftview(const Arg *arg);
 static void showhide(Client *c);
 static void sigchld(int unused);
@@ -1718,17 +1719,21 @@ setup(void) {
 }
 
 void
+shiftmask(unsigned int *m, int dir) {
+	if(!m)
+		return;
+
+	if(dir > 0) /* left circular shift */
+		*m = (*m << dir) | (*m >> (LENGTH(tags) - dir));
+	else /* right circular shift */
+		*m = (*m >> (- dir)) | (*m << (LENGTH(tags) + dir));
+}
+
+void
 shiftview(const Arg *arg) {
 	Arg shifted;
-
-	if(arg->i > 0) /* left circular shift */
-		shifted.ui = (selmon->tagset[selmon->seltags] << arg->i)
-		   | (selmon->tagset[selmon->seltags] >> (LENGTH(tags) - arg->i));
-
-	else /* right circular shift */
-		shifted.ui = selmon->tagset[selmon->seltags] >> (- arg->i)
-		   | selmon->tagset[selmon->seltags] << (LENGTH(tags) + arg->i);
-
+	shifted.ui = selmon->tagset[selmon->seltags];
+	shiftmask(&shifted.ui, arg->i);
 	view(&shifted);
 }
 
@@ -1873,15 +1878,10 @@ tag(const Arg *arg) {
 void
 tagrel(const Arg *arg) {
 	Arg shifted;
-
-	if(arg->i > 0) /* left circular shift */
-		shifted.ui = (selmon->sel->tags << arg->i)
-		   | (selmon->sel->tags >> (LENGTH(tags) - arg->i));
-
-	else /* right circular shift */
-		shifted.ui = selmon->sel->tags >> (- arg->i)
-		   | selmon->sel->tags << (LENGTH(tags) + arg->i);
-
+	if(!selmon->sel)
+		return;
+	shifted.ui = selmon->sel->tags;
+	shiftmask(&shifted.ui, arg->i);
 	tag(&shifted);
 }
 
