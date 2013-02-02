@@ -189,6 +189,7 @@ static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
+static void forcedtoggle(const Arg *arg);
 static unsigned long getcolor(const char *colstr);
 static Bool getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -965,6 +966,13 @@ getatomprop(Client *c, Atom prop) {
 		XFree(p);
 	}
 	return atom;
+}
+
+void
+forcedtoggle(const Arg *arg) {
+	Arg f;
+	f.i = 0;
+	view(&f);
 }
 
 unsigned long
