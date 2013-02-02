@@ -232,6 +232,7 @@ static void slinp(Monitor *);
 static void spawn(const Arg *arg);
 static void swapfocus();
 static void tag(const Arg *arg);
+static void tagrel(const Arg *arg);
 static void tagmon(const Arg *arg);
 static int textnw(const char *text, unsigned int len);
 static void tile(Monitor *);
@@ -1867,6 +1868,21 @@ tag(const Arg *arg) {
 		focus(NULL);
 		arrange(selmon);
 	}
+}
+
+void
+tagrel(const Arg *arg) {
+	Arg shifted;
+
+	if(arg->i > 0) /* left circular shift */
+		shifted.ui = (selmon->sel->tags << arg->i)
+		   | (selmon->sel->tags >> (LENGTH(tags) - arg->i));
+
+	else /* right circular shift */
+		shifted.ui = selmon->sel->tags >> (- arg->i)
+		   | selmon->sel->tags << (LENGTH(tags) + arg->i);
+
+	tag(&shifted);
 }
 
 void
