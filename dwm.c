@@ -64,8 +64,7 @@ enum { NetSupported, NetWMName, NetWMState,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
        NetWMWindowTypeDialog, NetClientList, NetLast };     /* EWMH atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
-enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle,
-       ClkClientWin, ClkRootWin, ClkLast };             /* clicks */
+enum { ClkTagBar, ClkClientWin, ClkRootWin };        /* clicks */
 
 typedef union {
 	int i;
@@ -439,7 +438,7 @@ attachstack(Client *c) {
 
 void
 buttonpress(XEvent *e) {
-	unsigned int i, x, click;
+	unsigned int i, click;
 	Arg arg = {0};
 	Client *c;
 	Monitor *m;
@@ -452,22 +451,8 @@ buttonpress(XEvent *e) {
 		selmon = m;
 		focus(NULL);
 	}
-	if(ev->window == selmon->barwin) {
-		i = x = 0;
-		do
-			x += TEXTW(tags[i]);
-		while(ev->x >= x && ++i < LENGTH(tags));
-		if(i < LENGTH(tags)) {
-			click = ClkTagBar;
-			arg.ui = 1 << i;
-		}
-		else if(ev->x < x + blw)
-			click = ClkLtSymbol;
-		else if(ev->x > selmon->ww - TEXTW(stext))
-			click = ClkStatusText;
-		else
-			click = ClkWinTitle;
-	}
+	if(ev->window == selmon->barwin)
+		click = ClkTagBar;
 	else if((c = wintoclient(ev->window))) {
 		focus(c);
 		click = ClkClientWin;
