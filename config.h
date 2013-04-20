@@ -1,1 +1,0 @@
-../../dotfiles-pub/dwm-config.h
