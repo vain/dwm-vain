@@ -439,7 +439,7 @@ attachstack(Client *c) {
 
 void
 buttonpress(XEvent *e) {
-	unsigned int i, x, click;
+	unsigned int occ, i, x, click;
 	Arg arg = {0};
 	Client *c;
 	Monitor *m;
@@ -453,10 +453,17 @@ buttonpress(XEvent *e) {
 		focus(NULL);
 	}
 	if(ev->window == selmon->barwin) {
-		i = x = 0;
-		do
+		occ = i = x = 0;
+		/* Get mask of occupied tags. */
+		for(c = m->clients; c; c = c->next)
+			occ |= c->tags;
+		do {
+			/* Skip adding text width of this tag if it's not occupied
+			 * or selected. */
+			if (!((occ | m->tagset[m->seltags]) & 1 << i))
+				continue;
 			x += TEXTW(tags[i]);
-		while(ev->x >= x && ++i < LENGTH(tags));
+		} while(ev->x >= x && ++i < LENGTH(tags));
 		if(i < LENGTH(tags)) {
 			click = ClkTagBar;
 			arg.ui = 1 << i;
