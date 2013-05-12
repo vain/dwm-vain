@@ -15,8 +15,8 @@ options:
 	@echo "CC       = ${CC}"
 
 .c.o:
-	@echo CC $<
-	@${CC} -c ${CFLAGS} $<
+	@echo CC $< -DSRVR_$$HOSTNAME
+	@${CC} -c ${CFLAGS} $< -DSRVR_$$HOSTNAME
 
 ${OBJ}: config.h config.mk
 
