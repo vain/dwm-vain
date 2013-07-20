@@ -22,15 +22,17 @@ static const Rule rules[] = {
 	 *	WM_CLASS(STRING) = instance, class
 	 *	WM_NAME(STRING) = title
 	 */
-	/* class      instance    title       tags mask     isfloating   monitor */
-	{ "Gimp",     NULL,       NULL,       0,            True,        -1 },
-	{ "Firefox",  NULL,       NULL,       1 << 8,       False,       -1 },
+	/* class      instance    title       tags mask     isfloating   monitor  sizehints */
+	{ "Gimp",     NULL,       NULL,       0,            True,        -1,      False },
+	{ "Firefox",  NULL,       NULL,       1 << 8,       False,       -1,      False },
 };
 
 /* layout(s) */
 static const float mfact      = 0.55; /* factor of master area size [0.05..0.95] */
 static const int nmaster      = 1;    /* number of clients in master area */
-static const Bool resizehints = True; /* True means respect size hints in tiled resizals */
+static const Bool sizehints_default = True;  /* True means respect size hints in
+                                                tiled resizals. Can be overriden
+                                                by a rule. */
 
 static const Layout layouts[] = {
 	/* symbol     arrange function */
