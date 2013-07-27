@@ -13,6 +13,7 @@ static const unsigned int snap      = 32;       /* snap pixel */
 static const unsigned int gappx     = 5;        /* useless gap */
 static const Bool showbar           = True;     /* False means no bar */
 static const Bool topbar            = True;     /* False means bottom bar */
+static Bool barbarrier              = False;    /* Put barriers around the bar */
 
 /* tagging */
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };

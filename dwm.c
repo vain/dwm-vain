@@ -40,6 +40,7 @@
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
+#include <X11/extensions/Xfixes.h>
 
 /* macros */
 #define BUTTONMASK              (ButtonPressMask|ButtonReleaseMask)
@@ -145,6 +146,7 @@ struct Monitor {
 	Monitor *next;
 	Window barwin;
 	const Layout *lt[2];
+	PointerBarrier barrier;
 };
 
 typedef struct {
@@ -174,7 +176,9 @@ static void clientmessage(XEvent *e);
 static void configure(Client *c);
 static void configurenotify(XEvent *e);
 static void configurerequest(XEvent *e);
+static void createallbarriers(void);
 static Monitor *createmon(void);
+static void destroyallbarriers(void);
 static void destroynotify(XEvent *e);
 static void detach(Client *c);
 static void detachstack(Client *c);
@@ -517,6 +521,7 @@ cleanup(void) {
 	Layout foo = { "", NULL };
 	Monitor *m;
 
+	destroyallbarriers();
 	view(&a);
 	selmon->lt[selmon->sellt] = &foo;
 	for(m = mons; m; m = m->next)
@@ -682,6 +687,23 @@ configurerequest(XEvent *e) {
 	XSync(dpy, False);
 }
 
+void
+createallbarriers(void) {
+	int barry;
+	Monitor *m;
+
+	if(barbarrier) {
+		for (m = mons; m; m = m->next) {
+			barry = m->topbar ? m->wy : m->wy + m->wh;
+			m->barrier = XFixesCreatePointerBarrier(dpy, root,
+					m->wx, barry,
+					m->wx + m->ww, barry,
+					m->topbar ? BarrierPositiveY : BarrierNegativeY,
+					0, NULL);  /* no per-device barriers */
+		}
+	}
+}
+
 Monitor *
 createmon(void) {
 	Monitor *m;
@@ -697,6 +719,15 @@ createmon(void) {
 	m->lt[1] = &layouts[1 % LENGTH(layouts)];
 	strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
 	return m;
+}
+
+void
+destroyallbarriers(void) {
+	Monitor *m;
+
+	if(barbarrier)
+		for(m = mons; m; m = m->next)
+			XFixesDestroyPointerBarrier(dpy, m->barrier);
 }
 
 void
@@ -1723,6 +1754,7 @@ setmfact(const Arg *arg) {
 void
 setup(void) {
 	XSetWindowAttributes wa;
+	int fixes_opcode, fixes_event_base, fixes_error_base;
 
 	/* clean up any zombies immediately */
 	sigchld(0);
@@ -1734,6 +1766,12 @@ setup(void) {
 	sw = DisplayWidth(dpy, screen);
 	sh = DisplayHeight(dpy, screen);
 	bh = dc.h = dc.font.height + 3;
+	if(!XQueryExtension(dpy, "XFIXES", &fixes_opcode, &fixes_event_base,
+		&fixes_error_base)) {
+		fprintf(stderr, "dwm: No XFIXES extension available,"
+		                "disabling pointer barriers.\n");
+		barbarrier = False;
+	}
 	updategeom();
 	/* init atoms */
 	wmatom[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
@@ -2184,6 +2222,8 @@ Bool
 updategeom(void) {
 	Bool dirty = False;
 
+	destroyallbarriers();
+
 #ifdef XINERAMA
 	if(XineramaIsActive(dpy)) {
 		int i, j, n, nn;
@@ -2259,6 +2299,9 @@ updategeom(void) {
 		selmon = mons;
 		selmon = wintomon(root);
 	}
+
+	createallbarriers();
+
 	return dirty;
 }
 
