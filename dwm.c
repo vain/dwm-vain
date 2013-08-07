@@ -694,12 +694,14 @@ createallbarriers(void) {
 
 	if(barbarrier) {
 		for (m = mons; m; m = m->next) {
-			barry = m->topbar ? m->wy : m->wy + m->wh;
-			m->barrier = XFixesCreatePointerBarrier(dpy, root,
-					m->wx, barry,
-					m->wx + m->ww, barry,
-					m->topbar ? BarrierPositiveY : BarrierNegativeY,
-					0, NULL);  /* no per-device barriers */
+			if(m->showbar) {
+				barry = m->topbar ? m->wy : m->wy + m->wh;
+				m->barrier = XFixesCreatePointerBarrier(dpy, root,
+						m->wx, barry,
+						m->wx + m->ww, barry,
+						m->topbar ? BarrierPositiveY : BarrierNegativeY,
+						0, NULL);  /* no per-device barriers */
+			}
 		}
 	}
 }
@@ -727,7 +729,8 @@ destroyallbarriers(void) {
 
 	if(barbarrier)
 		for(m = mons; m; m = m->next)
-			XFixesDestroyPointerBarrier(dpy, m->barrier);
+			if(m->showbar)
+				XFixesDestroyPointerBarrier(dpy, m->barrier);
 }
 
 void
@@ -2072,10 +2075,12 @@ tile(Monitor *m) {
 
 void
 togglebar(const Arg *arg) {
+	destroyallbarriers();
 	selmon->showbar = !selmon->showbar;
 	updatebarpos(selmon);
 	XMoveResizeWindow(dpy, selmon->barwin, selmon->wx, selmon->by, selmon->ww, bh);
 	arrange(selmon);
+	createallbarriers();
 }
 
 void
