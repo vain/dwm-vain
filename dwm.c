@@ -209,6 +209,7 @@ static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
 static void maprequest(XEvent *e);
 static void maximizefloater(const Arg *arg);
+static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static void movestack(const Arg *arg);
@@ -1294,6 +1295,29 @@ maximizefloater(const Arg *arg) {
 			selmon->wx, selmon->wy,
 			selmon->ww - 2 * selmon->sel->bw, selmon->wh - 2 * selmon->sel->bw,
 			False);
+}
+
+void
+monocle(Monitor *m) {
+	unsigned int n = 0, r = 0;
+	Client *c;
+
+	for(c = m->clients; c; c = c->next)
+		if(ISVISIBLE(c))
+			n++;
+	if(n > 0) /* override layout symbol */
+		snprintf(m->ltsymbol, sizeof m->ltsymbol, "[%d]", n);
+	for(c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
+		/* remove border when in monocle layout */
+		if(c->bw) {
+			c->oldbw = c->bw;
+			c->bw = 0;
+			r = 1;
+		}
+		resize(c, m->wx, m->wy, m->ww - (2 * c->bw), m->wh - (2 * c->bw), False);
+		if(r)
+			resizeclient(c, m->wx, m->wy, m->ww - (2 * c->bw), m->wh - (2 * c->bw));
+	}
 }
 
 void
