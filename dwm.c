@@ -1990,8 +1990,10 @@ void
 swapfocus(){
 	Client *c;
 	for(c = selmon->clients; c && c != prevclient; c = c->next) ;
-	if(c == prevclient)
+	if(c == prevclient) {
 		focus(prevclient);
+		restack(c->mon);
+	}
 }
 
 void
