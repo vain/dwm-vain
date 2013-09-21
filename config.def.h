@@ -17,6 +17,7 @@ static Bool barbarrier              = False;    /* Put barriers around the bar *
 
 /* tagging */
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+static const unsigned int startuptags = 1;  /* Tags selected on a new monitor */
 
 static const Rule rules[] = {
 	/* xprop(1):
