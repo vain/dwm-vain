@@ -49,3 +49,31 @@ Configuration
 -------------
 The configuration of dwm is done by creating a custom config.h
 and (re)compiling the source code.
+
+
+Extensions and changes of this fork
+-----------------------------------
+
+This fork is based on dwm-6.1. Major changes since then:
+
+- Builtin function to re-execute dwm
+- Included patches:
+	- swapfocus
+	- togglefullscreen
+	- noborder
+	- movestack
+- Builtin layout for slinp (see https://github.com/vain/slinp)
+- Double fork in spawn(): Child processes are now handed over to init
+- Additional helper functions:
+	- maximizefloater
+	- centerfloater
+	- shiftview: View adjacent tags
+	- tagrel: Send a client to adjacent tags
+- Status bar:
+	- A separator line below/above the bar
+	- Pointer barriers below/above the bar
+- drawbar: Only show occupied tags
+- Useless gaps for the tile layout
+- Per-rule resize hints
+
+For a full list, see the git log: "git log 1bdb393..HEAD"
