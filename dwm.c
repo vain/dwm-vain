@@ -146,7 +146,7 @@ struct Monitor {
 	Monitor *next;
 	Window barwin;
 	const Layout *lt[2];
-	PointerBarrier barrier;
+	PointerBarrier barrier[4];
 };
 
 typedef struct {
@@ -193,6 +193,7 @@ static void expose(XEvent *e);
 static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
+static void focusmonwarp(const Arg *arg);
 static void focusstack(const Arg *arg);
 static void forcedtoggle(const Arg *arg);
 static unsigned long getcolor(const char *colstr);
@@ -690,18 +691,32 @@ configurerequest(XEvent *e) {
 
 void
 createallbarriers(void) {
-	int barry;
 	Monitor *m;
 
-	if(barbarrier) {
-		for (m = mons; m; m = m->next) {
+	if(screenbarriers) {
+		for(m = mons; m; m = m->next) {
 			if(m->showbar) {
-				barry = m->topbar ? m->wy : m->wy + m->wh;
-				m->barrier = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, barry,
-						m->wx + m->ww, barry,
-						m->topbar ? BarrierPositiveY : BarrierNegativeY,
-						0, NULL);  /* no per-device barriers */
+				/* Top, bottom, left, right */
+				m->barrier[0] = XFixesCreatePointerBarrier(dpy, root,
+						m->wx, m->wy + borderpx + gappx,
+						m->wx + m->ww - 1, m->wy + borderpx + gappx,
+						BarrierPositiveY,
+						0, NULL);
+				m->barrier[1] = XFixesCreatePointerBarrier(dpy, root,
+						m->wx, m->wy + m->wh - 1 - borderpx - gappx,
+						m->wx + m->ww - 1, m->wy + m->wh - 1 - borderpx - gappx,
+						BarrierNegativeY,
+						0, NULL);
+				m->barrier[2] = XFixesCreatePointerBarrier(dpy, root,
+						m->wx + borderpx + gappx, m->wy,
+						m->wx + borderpx + gappx, m->wy + m->wh - 1,
+						BarrierPositiveX,
+						0, NULL);
+				m->barrier[3] = XFixesCreatePointerBarrier(dpy, root,
+						m->wx + m->ww - 1 - borderpx - gappx, m->wy,
+						m->wx + m->ww - 1 - borderpx - gappx, m->wy + m->wh - 1,
+						BarrierNegativeX,
+						0, NULL);
 			}
 		}
 	}
@@ -727,11 +742,13 @@ createmon(void) {
 void
 destroyallbarriers(void) {
 	Monitor *m;
+	int i;
 
-	if(barbarrier)
+	if(screenbarriers)
 		for(m = mons; m; m = m->next)
 			if(m->showbar)
-				XFixesDestroyPointerBarrier(dpy, m->barrier);
+				for(i = 0; i < 4; i++)
+					XFixesDestroyPointerBarrier(dpy, m->barrier[i]);
 }
 
 void
@@ -971,6 +988,14 @@ focusmon(const Arg *arg) {
 					in gedit and anjuta */
 	selmon = m;
 	focus(NULL);
+}
+
+void
+focusmonwarp(const Arg *arg) {
+	focusmon(arg);
+	XWarpPointer(dpy, None, root, 0, 0, 0, 0,
+	             selmon->wx + (int)(0.5 * selmon->ww),
+	             selmon->wy + (int)(0.5 * selmon->wh));
 }
 
 void
@@ -1788,7 +1813,7 @@ setup(void) {
 		&fixes_error_base)) {
 		fprintf(stderr, "dwm: No XFIXES extension available,"
 		                "disabling pointer barriers.\n");
-		barbarrier = False;
+		screenbarriers = False;
 	}
 	updategeom();
 	/* init atoms */

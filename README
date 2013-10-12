@@ -68,9 +68,8 @@ This fork is based on dwm-6.1. Major changes since then:
 	- centerfloater
 	- shiftview: View adjacent tags
 	- tagrel: Send a client to adjacent tags
-- Status bar:
-	- A separator line below/above the bar
-	- Pointer barriers below/above the bar
+- Pointer barriers around the working area
+- A separator line below/above the status bar
 - drawbar: Only show occupied tags
 - Useless gaps for the tile layout
 - Per-rule resize hints

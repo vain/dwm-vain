@@ -13,7 +13,7 @@ static const unsigned int snap      = 32;       /* snap pixel */
 static const unsigned int gappx     = 5;        /* useless gap */
 static const Bool showbar           = True;     /* False means no bar */
 static const Bool topbar            = True;     /* False means bottom bar */
-static Bool barbarrier              = False;    /* Put barriers around the bar */
+static Bool screenbarriers          = False;    /* Put barriers around the WA */
 
 /* tagging */
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
@@ -79,8 +79,10 @@ static Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_space,  togglefloating, {0} },
 	{ MODKEY,                       XK_0,      view,           {.ui = ~0 } },
 	{ MODKEY|ShiftMask,             XK_0,      tag,            {.ui = ~0 } },
-	{ MODKEY,                       XK_comma,  focusmon,       {.i = -1 } },
-	{ MODKEY,                       XK_period, focusmon,       {.i = +1 } },
+	{ MODKEY,                       XK_comma,  focusmonwarp,   {.i = -1 } },
+	{ MODKEY,                       XK_period, focusmonwarp,   {.i = +1 } },
+	{ MODKEY|ControlMask,           XK_comma,  focusmon,       {.i = -1 } },
+	{ MODKEY|ControlMask,           XK_period, focusmon,       {.i = +1 } },
 	{ MODKEY|ShiftMask,             XK_comma,  tagmon,         {.i = -1 } },
 	{ MODKEY|ShiftMask,             XK_period, tagmon,         {.i = +1 } },
 	TAGKEYS(                        XK_1,                      0)
