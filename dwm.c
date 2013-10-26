@@ -703,8 +703,8 @@ createallbarriers(void) {
 						BarrierPositiveY,
 						0, NULL);
 				m->barrier[1] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, m->wy + m->wh - 1 - borderpx - gappx,
-						m->wx + m->ww - 1, m->wy + m->wh - 1 - borderpx - gappx,
+						m->wx, m->wy + m->wh - borderpx - gappx,
+						m->wx + m->ww - 1, m->wy + m->wh - borderpx - gappx,
 						BarrierNegativeY,
 						0, NULL);
 				m->barrier[2] = XFixesCreatePointerBarrier(dpy, root,
@@ -713,8 +713,8 @@ createallbarriers(void) {
 						BarrierPositiveX,
 						0, NULL);
 				m->barrier[3] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx + m->ww - 1 - borderpx - gappx, m->wy,
-						m->wx + m->ww - 1 - borderpx - gappx, m->wy + m->wh - 1,
+						m->wx + m->ww - borderpx - gappx, m->wy,
+						m->wx + m->ww - borderpx - gappx, m->wy + m->wh - 1,
 						BarrierNegativeX,
 						0, NULL);
 			}
