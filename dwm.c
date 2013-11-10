@@ -809,7 +809,7 @@ dirtomon(int dir) {
 void
 drawbar(Monitor *m) {
 	int x;
-	unsigned int i, occ = 0, urg = 0;
+	unsigned int i, occ = 0, urg = 0, n = 0;
 	unsigned long *col;
 	Client *c;
 
@@ -848,9 +848,20 @@ drawbar(Monitor *m) {
 	if((dc.w = dc.x - x) > bh) {
 		dc.x = x;
 		if(m->sel) {
-			col = m == selmon ? dc.sel : dc.norm;
-			drawtext(m->sel->name, col, False);
-			drawsquare(m->sel->isfixed, m->sel->isfloating, False, col);
+			for(c = m->clients; c; c = c->next) {
+				if(!ISVISIBLE(c))
+					continue;
+				n++;
+			}
+			dc.w /= n;
+			for(c = m->clients; c; c = c->next) {
+				if(!ISVISIBLE(c))
+					continue;
+				col = m == selmon && m->sel == c ? dc.sel : dc.norm;
+				drawtext(c->name, col, c->isurgent);
+				drawsquare(c->isfixed, c->isfloating, False, col);
+				dc.x += dc.w;
+			}
 		}
 		else
 			drawtext(NULL, dc.norm, False);
