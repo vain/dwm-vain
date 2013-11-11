@@ -866,6 +866,12 @@ drawbar(Monitor *m) {
 					dc.w = oldw - (n - 1) * dc.w;
 				drawtext(c->name, col, c->isurgent);
 				drawsquare(c->isfixed, c->isfloating, False, col);
+				if(i != n - 1) {
+					XSetForeground(dpy, dc.gc, dc.norm[ColFG]);
+					XDrawLine(dpy, dc.drawable, dc.gc,
+					          dc.x + dc.w - 1, dc.y,
+					          dc.x + dc.w - 1, bh - 1 - (m->topbar ? 1 : 0));
+				}
 				dc.x += dc.w;
 				i++;
 			}
