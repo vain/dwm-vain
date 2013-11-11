@@ -104,6 +104,8 @@ typedef struct {
 	int x, y, w, h;
 	unsigned long norm[ColLast];
 	unsigned long sel[ColLast];
+	unsigned long info[ColLast];
+	unsigned long infosel[ColLast];
 	Drawable drawable;
 	GC gc;
 	struct {
@@ -824,14 +826,14 @@ drawbar(Monitor *m) {
 		if (!((occ | m->tagset[m->seltags]) & 1 << i))
 			continue;
 		dc.w = TEXTW(tags[i]);
-		col = m->tagset[m->seltags] & 1 << i ? dc.sel : dc.norm;
+		col = m->tagset[m->seltags] & 1 << i ? dc.infosel : dc.info;
 		drawtext(tags[i], col, urg & 1 << i);
 		drawsquare(m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
 		           occ & 1 << i, urg & 1 << i, col);
 		dc.x += dc.w;
 	}
 	dc.w = blw = TEXTW(m->ltsymbol);
-	drawtext(m->ltsymbol, dc.norm, False);
+	drawtext(m->ltsymbol, dc.info, False);
 	dc.x += dc.w;
 	x = dc.x;
 	if(m == selmon) { /* status is only drawn on selected monitor */
@@ -841,7 +843,7 @@ drawbar(Monitor *m) {
 			dc.x = x;
 			dc.w = m->ww - x;
 		}
-		drawtext(stext, dc.norm, False);
+		drawtext(stext, dc.info, False);
 	}
 	else
 		dc.x = m->ww;
@@ -1858,6 +1860,10 @@ setup(void) {
 	dc.sel[ColBorder] = getcolor(selbordercolor);
 	dc.sel[ColBG] = getcolor(selbgcolor);
 	dc.sel[ColFG] = getcolor(selfgcolor);
+	dc.info[ColBG] = getcolor(infobgcolor);
+	dc.info[ColFG] = getcolor(infofgcolor);
+	dc.infosel[ColBG] = getcolor(infoselbgcolor);
+	dc.infosel[ColFG] = getcolor(infoselfgcolor);
 	dc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
 	dc.gc = XCreateGC(dpy, root, 0, NULL);
 	XSetLineAttributes(dpy, dc.gc, 1, LineSolid, CapButt, JoinMiter);

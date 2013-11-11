@@ -73,6 +73,7 @@ This fork is based on dwm-6.1. Major changes since then:
 - drawbar:
 	- Only show occupied tags (allows you to you *A LOT* of tags)
 	- List all visible clients (particularly useful in monocle mode)
+	- Additional colors for info areas (taglist and status)
 - Useless gaps for the tile layout
 - Per-rule resize hints
 
