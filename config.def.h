@@ -12,6 +12,7 @@ static const char infobgcolor[]     = "#000000";
 static const char infofgcolor[]     = "#cccccc";
 static const char infoselbgcolor[]  = "#004466";
 static const char infoselfgcolor[]  = "#dddddd";
+static const char linecolor[]       = "#000000";
 static const unsigned int borderpx  = 1;        /* border pixel of windows */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const unsigned int gappx     = 5;        /* useless gap */

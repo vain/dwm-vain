@@ -106,6 +106,7 @@ typedef struct {
 	unsigned long sel[ColLast];
 	unsigned long info[ColLast];
 	unsigned long infosel[ColLast];
+	unsigned long linecolor;
 	Drawable drawable;
 	GC gc;
 	struct {
@@ -867,7 +868,7 @@ drawbar(Monitor *m) {
 				drawtext(c->name, col, c->isurgent);
 				drawsquare(c->isfixed, c->isfloating, False, col);
 				if(i != n - 1) {
-					XSetForeground(dpy, dc.gc, dc.norm[ColFG]);
+					XSetForeground(dpy, dc.gc, dc.linecolor);
 					XDrawLine(dpy, dc.drawable, dc.gc,
 					          dc.x + dc.w - 1, dc.y,
 					          dc.x + dc.w - 1, bh - 1 - (m->topbar ? 1 : 0));
@@ -881,7 +882,7 @@ drawbar(Monitor *m) {
 	}
 
 	/* Draw border. */
-	XSetForeground(dpy, dc.gc, dc.norm[ColFG]);
+	XSetForeground(dpy, dc.gc, dc.linecolor);
 	if (topbar)
 		XDrawLine(dpy, dc.drawable, dc.gc, 0, bh - 1, m->ww, bh - 1);
 	else
@@ -1875,6 +1876,7 @@ setup(void) {
 	dc.info[ColFG] = getcolor(infofgcolor);
 	dc.infosel[ColBG] = getcolor(infoselbgcolor);
 	dc.infosel[ColFG] = getcolor(infoselfgcolor);
+	dc.linecolor = getcolor(linecolor);
 	dc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
 	dc.gc = XCreateGC(dpy, root, 0, NULL);
 	XSetLineAttributes(dpy, dc.gc, 1, LineSolid, CapButt, JoinMiter);
