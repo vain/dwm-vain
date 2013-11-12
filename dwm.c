@@ -850,35 +850,49 @@ drawbar(Monitor *m) {
 		dc.x = m->ww;
 	if((dc.w = dc.x - x) > bh) {
 		dc.x = x;
-		if(m->sel) {
-			for(c = m->clients; c; c = c->next) {
-				if(!ISVISIBLE(c))
-					continue;
-				n++;
-			}
-			oldw = dc.w;
-			dc.w /= n;
-			i = 0;
-			for(c = m->clients; c; c = c->next) {
-				if(!ISVISIBLE(c))
-					continue;
-				col = m == selmon && m->sel == c ? dc.sel : dc.norm;
-				if(i == n - 1)
-					dc.w = oldw - (n - 1) * dc.w;
-				drawtext(c->name, col, c->isurgent);
-				drawsquare(c->isfixed, c->isfloating, False, col);
-				if(i != n - 1) {
-					XSetForeground(dpy, dc.gc, dc.linecolor);
-					XDrawLine(dpy, dc.drawable, dc.gc,
-					          dc.x + dc.w - 1, dc.y,
-					          dc.x + dc.w - 1, bh - 1 - (m->topbar ? 1 : 0));
-				}
-				dc.x += dc.w;
-				i++;
-			}
+
+		/* "Clear" task list */
+		drawtext(NULL, dc.norm, False);
+
+		/* Count clients on current tags */
+		for(c = m->clients; c; c = c->next) {
+			if(!ISVISIBLE(c))
+				continue;
+			n++;
 		}
-		else
-			drawtext(NULL, dc.norm, False);
+		oldw = dc.w;
+		if(n > 0)
+			dc.w /= n;
+		i = 0;
+
+		/* List visible clients with separators in between */
+		for(c = m->clients; c; c = c->next) {
+			if(!ISVISIBLE(c))
+				continue;
+			col = m == selmon && m->sel == c ? dc.sel : dc.norm;
+			if(i == n - 1)
+				dc.w = oldw - (n - 1) * dc.w;
+			drawtext(c->name, col, c->isurgent);
+			drawsquare(c->isfixed, c->isfloating, False, col);
+			if(i != n - 1) {
+				XSetForeground(dpy, dc.gc, dc.linecolor);
+				XDrawLine(dpy, dc.drawable, dc.gc,
+				          dc.x + dc.w - 1, dc.y,
+				          dc.x + dc.w - 1, bh - 1 - (m->topbar ? 1 : 0));
+			}
+			dc.x += dc.w;
+			i++;
+		}
+
+		/* Draw first and last separator (outside of the actual tasklist) */
+		XSetForeground(dpy, dc.gc, dc.linecolor);
+		XDrawLine(dpy, dc.drawable, dc.gc,
+		          x - 1, dc.y,
+		          x - 1, bh - 1 - (m->topbar ? 1 : 0));
+		XSetForeground(dpy, dc.gc, dc.linecolor);
+		XDrawLine(dpy, dc.drawable, dc.gc,
+		          x + oldw, dc.y,
+		          x + oldw, bh - 1 - (m->topbar ? 1 : 0));
 	}
 
 	/* Draw border. */
