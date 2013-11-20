@@ -877,7 +877,7 @@ drawbar(Monitor *m) {
 				XSetForeground(dpy, dc.gc, dc.linecolor);
 				XDrawLine(dpy, dc.drawable, dc.gc,
 				          dc.x + dc.w - 1, dc.y,
-				          dc.x + dc.w - 1, bh - 1 - (m->topbar ? 1 : 0));
+				          dc.x + dc.w - 1, bh);
 			}
 			dc.x += dc.w;
 			i++;
@@ -887,11 +887,11 @@ drawbar(Monitor *m) {
 		XSetForeground(dpy, dc.gc, dc.linecolor);
 		XDrawLine(dpy, dc.drawable, dc.gc,
 		          x - 1, dc.y,
-		          x - 1, bh - 1 - (m->topbar ? 1 : 0));
+		          x - 1, bh);
 		XSetForeground(dpy, dc.gc, dc.linecolor);
 		XDrawLine(dpy, dc.drawable, dc.gc,
 		          x + oldw, dc.y,
-		          x + oldw, bh - 1 - (m->topbar ? 1 : 0));
+		          x + oldw, bh);
 	}
 
 	/* Draw border. */
