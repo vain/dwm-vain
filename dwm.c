@@ -2094,20 +2094,23 @@ textnw(const char *text, unsigned int len) {
 
 void
 tile(Monitor *m) {
-	unsigned int i, n, h, mw, my, ty;
+	unsigned int i, n, h, mw, my, ty, actual_nmaster;
 	Client *c;
 
 	for(n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
 	if(n == 0)
 		return;
 
-	if(n > m->nmaster)
-		mw = m->nmaster ? m->ww * m->mfact : 0;
+	/* XXX: Experimental. */
+	actual_nmaster = n > 3 ? m->nmaster : 1;
+
+	if(n > actual_nmaster)
+		mw = actual_nmaster ? m->ww * m->mfact : 0;
 	else
 		mw = m->ww;
 	for(i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
-		if(i < m->nmaster) {
-			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
+		if(i < actual_nmaster) {
+			h = (m->wh - my) / (MIN(n, actual_nmaster) - i);
 			resize(c,
 			       m->wx + gappx,
 			       m->wy + my + gappx,
