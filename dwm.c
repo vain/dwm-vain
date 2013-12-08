@@ -2102,7 +2102,7 @@ tile(Monitor *m) {
 		return;
 
 	/* XXX: Experimental. */
-	actual_nmaster = n > 3 ? m->nmaster : 1;
+	actual_nmaster = MAX(MIN(MAX(n / 2, 1), 4), m->nmaster);
 
 	if(n > actual_nmaster)
 		mw = actual_nmaster ? m->ww * m->mfact : 0;
