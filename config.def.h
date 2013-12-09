@@ -35,9 +35,10 @@ static const Rule rules[] = {
 };
 
 /* layout(s) */
-static const float mfact      = 0.55; /* factor of master area size [0.05..0.95] */
-static const int nmaster      = 1;    /* number of clients in master area */
-static const Bool sizehints_default = True;  /* True means respect size hints in
+static const int nmaster_dynamic_max = 4;    /* Maximum number of clients in master column */
+static const int nmaster             = 0;    /* Can override nmaster_dynamic_max if > 0 */
+static const float mfact             = 0.55; /* factor of master area size [0.05..0.95] */
+static const Bool sizehints_default  = True; /* True means respect size hints in
                                                 tiled resizals. Can be overriden
                                                 by a rule. */
 

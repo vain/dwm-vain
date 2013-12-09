@@ -134,6 +134,7 @@ struct Monitor {
 	char ltsymbol[16];
 	float mfact;
 	int nmaster;
+	int nmaster_dynamic_max;
 	int num;
 	int by;               /* bar geometry */
 	int mx, my, mw, mh;   /* screen size */
@@ -733,6 +734,7 @@ createmon(void) {
 	m->tagset[0] = m->tagset[1] = startuptags;
 	m->mfact = mfact;
 	m->nmaster = nmaster;
+	m->nmaster_dynamic_max = nmaster_dynamic_max;
 	m->showbar = showbar;
 	m->topbar = topbar;
 	m->lt[0] = &layouts[0];
@@ -2102,7 +2104,10 @@ tile(Monitor *m) {
 		return;
 
 	/* XXX: Experimental. */
-	actual_nmaster = MAX(MIN(MAX(n / 2, 1), 4), m->nmaster);
+	if (m->nmaster != 0)
+		actual_nmaster = m->nmaster;
+	else
+		actual_nmaster = MIN(MAX(n / 2, 1), m->nmaster_dynamic_max);
 
 	if(n > actual_nmaster)
 		mw = actual_nmaster ? m->ww * m->mfact : 0;
