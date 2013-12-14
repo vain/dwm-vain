@@ -74,7 +74,11 @@ This fork is based on dwm-6.1. Major changes since then:
 	- Only show occupied tags (allows you to you *A LOT* of tags)
 	- List all visible clients (particularly useful in monocle mode)
 	- Additional colors for info areas (taglist and status)
-- Useless gaps for the tile layout
+- tile layout:
+	- Made "nmaster" dynamic, so it's actually more like a grid layout:
+	  Try to have as many clients in the master column as there are in
+	  the slave column. ("nmaster_dynamic_max" is a limit to this.)
+	- Support for useless gaps
 - Per-rule resize hints
 
 For a full list, see the git log: "git log 1bdb393..HEAD"

@@ -2103,7 +2103,6 @@ tile(Monitor *m) {
 	if(n == 0)
 		return;
 
-	/* XXX: Experimental. */
 	if (m->nmaster != 0)
 		actual_nmaster = m->nmaster;
 	else
