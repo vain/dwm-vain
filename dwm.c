@@ -1034,8 +1034,8 @@ void
 focusmonwarp(const Arg *arg) {
 	focusmon(arg);
 	XWarpPointer(dpy, None, root, 0, 0, 0, 0,
-	             selmon->wx + (int)(0.5 * selmon->ww),
-	             selmon->wy + (int)(0.5 * selmon->wh));
+	             selmon->wx + (int)(0.1 * selmon->ww),
+	             selmon->wy + (int)(0.1 * selmon->wh));
 }
 
 void
