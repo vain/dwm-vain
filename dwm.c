@@ -838,17 +838,15 @@ drawbar(Monitor *m) {
 	drawtext(m->ltsymbol, dc.info, False);
 	dc.x += dc.w;
 	x = dc.x;
-	if(m == selmon) { /* status is only drawn on selected monitor */
-		dc.w = TEXTW(stext);
-		dc.x = m->ww - dc.w;
-		if(dc.x < x) {
-			dc.x = x;
-			dc.w = m->ww - x;
-		}
-		drawtext(stext, dc.info, False);
+
+	dc.w = TEXTW(stext);
+	dc.x = m->ww - dc.w;
+	if(dc.x < x) {
+		dc.x = x;
+		dc.w = m->ww - x;
 	}
-	else
-		dc.x = m->ww;
+	drawtext(stext, dc.info, False);
+
 	if((dc.w = dc.x - x) > bh) {
 		dc.x = x;
 
@@ -2441,9 +2439,11 @@ updatetitle(Client *c) {
 
 void
 updatestatus(void) {
+	Monitor *m;
 	if(!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
 		strcpy(stext, "dwm-"VERSION);
-	drawbar(selmon);
+	for(m = mons; m; m = m->next)
+		drawbar(m);
 }
 
 void

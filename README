@@ -61,6 +61,7 @@ This fork is based on dwm-6.1. Major changes since then:
 	- swapfocus
 	- togglefullscreen
 	- movestack
+	- statusallmons
 - Builtin layout for slinp (see https://github.com/vain/slinp)
 - Double fork in spawn(): Child processes are now handed over to init
 - Additional helper functions:
