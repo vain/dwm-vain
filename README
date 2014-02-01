@@ -72,7 +72,7 @@ This fork is based on dwm-6.1. Major changes since then:
 - Pointer barriers around the working area
 - A separator line below/above the status bar
 - drawbar:
-	- Only show occupied tags (allows you to you *A LOT* of tags)
+	- Only show occupied tags (allows you to use *A LOT* of tags)
 	- List all visible clients (particularly useful in monocle mode)
 	- Additional colors for info areas (taglist and status)
 - tile layout:
