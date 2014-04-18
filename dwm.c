@@ -1451,6 +1451,9 @@ void
 movestack(const Arg *arg) {
 	Client *c = NULL, *p = NULL, *pc = NULL, *i;
 
+	if(!selmon || !selmon->sel)
+		return;
+
 	if(arg->i > 0) {
 		/* find the client after selmon->sel */
 		for(c = selmon->sel->next; c && (!ISVISIBLE(c) || c->isfloating); c = c->next);
