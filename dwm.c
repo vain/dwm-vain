@@ -2122,17 +2122,17 @@ tile(Monitor *m) {
 			       mw - (2*c->bw) - (2*gappx),
 			       h - (2*c->bw) - (2*gappx),
 			       False);
-			my += HEIGHT(c) + gappx;
+			my += HEIGHT(c) + (2*gappx);
 		}
 		else {
 			h = (m->wh - ty) / (n - i);
 			resize(c,
-			       m->wx + mw,
+			       m->wx + mw + gappx,
 			       m->wy + ty + gappx,
-			       m->ww - mw - (2*c->bw) - gappx,
+			       m->ww - mw - (2*c->bw) - (2*gappx),
 			       h - (2*c->bw) - (2*gappx),
 			       False);
-			ty += HEIGHT(c) + gappx;
+			ty += HEIGHT(c) + (2*gappx);
 		}
 }
 
