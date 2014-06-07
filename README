@@ -58,16 +58,19 @@ This fork is based on dwm-6.1. Major changes since then:
 
 - Builtin function to re-execute dwm
 - Included patches:
-	- swapfocus
-	- togglefullscreen
 	- movestack
 	- statusallmons
+	- swapfocus
+	- togglefullscreen
 	- urgentborder
 - Builtin layout for slinp (see https://github.com/vain/slinp)
 - Double fork in spawn(): Child processes are now handed over to init
 - Additional helper functions:
-	- maximizefloater
 	- centerfloater
+	- focusmonwarp: Focus another monitor and warp the mouse pointer to
+	  the last selected client on that monitor
+	- maximizefloater
+	- modgap: Modify gap size at runtime
 	- shiftview: View adjacent tags
 	- tagrel: Send a client to adjacent tags
 - Pointer barriers around the working area
