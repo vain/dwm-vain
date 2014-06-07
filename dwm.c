@@ -107,6 +107,7 @@ typedef struct {
 	unsigned long info[ColLast];
 	unsigned long infosel[ColLast];
 	unsigned long linecolor;
+	unsigned long urgbordercolor;
 	Drawable drawable;
 	GC gc;
 	struct {
@@ -1885,6 +1886,7 @@ setup(void) {
 	dc.infosel[ColBG] = getcolor(infoselbgcolor);
 	dc.infosel[ColFG] = getcolor(infoselfgcolor);
 	dc.linecolor = getcolor(linecolor);
+	dc.urgbordercolor = getcolor(urgbordercolor);
 	dc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
 	dc.gc = XCreateGC(dpy, root, 0, NULL);
 	XSetLineAttributes(dpy, dc.gc, 1, LineSolid, CapButt, JoinMiter);
@@ -2470,8 +2472,11 @@ updatewmhints(Client *c) {
 			wmh->flags &= ~XUrgencyHint;
 			XSetWMHints(dpy, c->win, wmh);
 		}
-		else
+		else {
 			c->isurgent = (wmh->flags & XUrgencyHint) ? True : False;
+			if (c->isurgent)
+				XSetWindowBorder(dpy, c->win, dc.urgbordercolor);
+		}
 		if(wmh->flags & InputHint)
 			c->neverfocus = !wmh->input;
 		else
