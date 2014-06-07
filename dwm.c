@@ -214,6 +214,7 @@ static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
 static void maprequest(XEvent *e);
 static void maximizefloater(const Arg *arg);
+static void modgap(const Arg *a);
 static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
@@ -1355,6 +1356,22 @@ maximizefloater(const Arg *arg) {
 	       selmon->ww - (2*selmon->sel->bw) - (2*gappx),
 	       selmon->wh - (2*selmon->sel->bw) - (2*gappx),
 	       False);
+}
+
+void
+modgap(const Arg *a) {
+	Monitor *m;
+
+	if(!selmon)
+		return;
+
+	destroyallbarriers();
+	gappx += a->i;
+	if(gappx < 0)
+		gappx = 0;
+	for(m = mons; m; m = m->next)
+		arrange(m);
+	createallbarriers();
 }
 
 void
