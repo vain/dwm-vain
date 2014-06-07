@@ -139,6 +139,7 @@ struct Monitor {
 	int by;               /* bar geometry */
 	int mx, my, mw, mh;   /* screen size */
 	int wx, wy, ww, wh;   /* window area  */
+	int lmx, lmy;
 	unsigned int seltags;
 	unsigned int sellt;
 	unsigned int tagset[2];
@@ -1030,10 +1031,12 @@ focusmon(const Arg *arg) {
 
 void
 focusmonwarp(const Arg *arg) {
+	if(selmon->sel) {
+		selmon->lmx = selmon->sel->x + (int)(0.5 * selmon->sel->w);
+		selmon->lmy = selmon->sel->y + (int)(0.5 * selmon->sel->h);
+	}
 	focusmon(arg);
-	XWarpPointer(dpy, None, root, 0, 0, 0, 0,
-	             selmon->wx + (int)(0.1 * selmon->ww),
-	             selmon->wy + (int)(0.1 * selmon->wh));
+	XWarpPointer(dpy, None, root, 0, 0, 0, 0, selmon->lmx, selmon->lmy);
 }
 
 void
@@ -2322,6 +2325,8 @@ updategeom(void) {
 					m->my = m->wy = unique[i].y_org;
 					m->mw = m->ww = unique[i].width;
 					m->mh = m->wh = unique[i].height;
+					m->lmx = m->wx + (int)(0.5 * m->ww);
+					m->lmy = m->wy + (int)(0.5 * m->wh);
 					updatebarpos(m);
 				}
 		}
