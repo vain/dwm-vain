@@ -66,6 +66,7 @@ enum { NetSupported, NetWMName, NetWMState,
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
 enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle,
        ClkClientWin, ClkRootWin, ClkLast };             /* clicks */
+enum BorderType { StateNormal, StateFocused, StateUrgent };
 
 typedef union {
 	int i;
@@ -219,6 +220,7 @@ static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static void movestack(const Arg *arg);
+static unsigned long multiplycolor(unsigned long col, double fact);
 static Client *nexttiled(Client *c);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
@@ -233,6 +235,7 @@ static void run(void);
 static void scan(void);
 static Bool sendevent(Client *c, Atom proto);
 static void sendmon(Client *c, Monitor *m);
+static void setborder(Client *c, enum BorderType state);
 static void setclientstate(Client *c, long state);
 static void setfocus(Client *c);
 static void setfullscreen(Client *c, Bool fullscreen);
@@ -281,6 +284,7 @@ static void zoom(const Arg *arg);
 static Client *prevclient = NULL;
 static const char broken[] = "broken";
 static char stext[256];
+static int totalborderpx;
 static int gappx;
 static int screen;
 static int screenbarriers;
@@ -617,6 +621,7 @@ configure(Client *c) {
 	ce.above = None;
 	ce.override_redirect = False;
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
+	setborder(c, (c->isurgent ? StateUrgent : (c->mon->sel == c ? StateFocused : StateNormal)));
 }
 
 void
@@ -705,23 +710,23 @@ createallbarriers(void) {
 			if(m->showbar) {
 				/* Top, bottom, left, right */
 				m->barrier[0] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, m->wy + borderpx + gappx,
-						m->wx + m->ww - 1, m->wy + borderpx + gappx,
+						m->wx, m->wy + totalborderpx + gappx,
+						m->wx + m->ww - 1, m->wy + totalborderpx + gappx,
 						BarrierPositiveY,
 						0, NULL);
 				m->barrier[1] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, m->wy + m->wh - borderpx - gappx,
-						m->wx + m->ww - 1, m->wy + m->wh - borderpx - gappx,
+						m->wx, m->wy + m->wh - totalborderpx - gappx,
+						m->wx + m->ww - 1, m->wy + m->wh - totalborderpx - gappx,
 						BarrierNegativeY,
 						0, NULL);
 				m->barrier[2] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx + borderpx + gappx, m->wy,
-						m->wx + borderpx + gappx, m->wy + m->wh - 1,
+						m->wx + totalborderpx + gappx, m->wy,
+						m->wx + totalborderpx + gappx, m->wy + m->wh - 1,
 						BarrierPositiveX,
 						0, NULL);
 				m->barrier[3] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx + m->ww - borderpx - gappx, m->wy,
-						m->wx + m->ww - borderpx - gappx, m->wy + m->wh - 1,
+						m->wx + m->ww - totalborderpx - gappx, m->wy,
+						m->wx + m->ww - totalborderpx - gappx, m->wy + m->wh - 1,
 						BarrierNegativeX,
 						0, NULL);
 			}
@@ -998,7 +1003,7 @@ focus(Client *c) {
 		detachstack(c);
 		attachstack(c);
 		grabbuttons(c, True);
-		XSetWindowBorder(dpy, c->win, dc.sel[ColBorder]);
+		setborder(c, StateFocused);
 		setfocus(c);
 	}
 	else {
@@ -1296,7 +1301,7 @@ manage(Window w, XWindowAttributes *wa) {
 	/* only fix client y-offset, if the client center might cover the bar */
 	c->y = MAX(c->y, ((c->mon->by == c->mon->my) && (c->x + (c->w / 2) >= c->mon->wx)
 	           && (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
-	c->bw = borderpx;
+	c->bw = totalborderpx;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
@@ -1518,6 +1523,17 @@ movestack(const Arg *arg) {
 
 		arrange(selmon);
 	}
+}
+
+unsigned long
+multiplycolor(unsigned long col, double fact) {
+	int r = (int)(((0xFF0000 & col) >> 16) * fact);
+	int g = (int)(((0x00FF00 & col) >>  8) * fact);
+	int b = (int)(((0x0000FF & col) >>  0) * fact);
+	r = r > 255 ? 255 : r;
+	g = g > 255 ? 255 : g;
+	b = b > 255 ? 255 : b;
+	return (0xFF000000 & col) | (r << 16) | (g <<  8) | (b <<  0);
 }
 
 Client *
@@ -1742,6 +1758,94 @@ sendmon(Client *c, Monitor *m) {
 }
 
 void
+setborder(Client *c, enum BorderType state) {
+	Pixmap unshifted, shifted;
+	GC gc;
+	unsigned int long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
+
+	/* X begins tiling the pixmap at the client's origin -- not at the
+	 * border's origin. */
+
+	gc = XCreateGC(dpy, root, 0, NULL);
+	unshifted = XCreatePixmap(dpy, root, c->w + 2*c->bw, c->h + 2*c->bw,
+	                          DefaultDepth(dpy, screen));
+	shifted = XCreatePixmap(dpy, root, c->w + 2*c->bw, c->h + 2*c->bw,
+	                        DefaultDepth(dpy, screen));
+
+	/* Draw unshifted */
+	switch (state) {
+		case StateNormal: colbase = dc.norm[ColBorder]; break;
+		case StateFocused: colbase = dc.sel[ColBorder]; break;
+		case StateUrgent: colbase = dc.urgbordercolor; break;
+	}
+
+	if(beveledborder) {
+		colouter = multiplycolor(colbase, bevelfacts[0]);
+		colmiddle = multiplycolor(colbase, bevelfacts[1]);
+		colinner = multiplycolor(colbase, bevelfacts[2]);
+	}
+	else {
+		colouter = dc.linecolor;
+		colmiddle = colbase;
+		colinner = dc.linecolor;
+	}
+
+	XSetForeground(dpy, gc, colouter);
+	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
+
+	XSetForeground(dpy, gc, colmiddle);
+	XFillRectangle(dpy, unshifted, gc,
+	               borders[0], borders[0],
+	               c->w + 2*c->bw - 2*borders[0], c->h + 2*c->bw - 2*borders[0]);
+
+	XSetForeground(dpy, gc, colinner);
+	XFillRectangle(dpy, unshifted, gc,
+	               borders[0] + borders[1], borders[0] + borders[1],
+	               c->w + 2*c->bw - 2*(borders[0] + borders[1]),
+	               c->h + 2*c->bw - 2*(borders[0] + borders[1]));
+
+	/* Shift (XXX can be simplified) */
+	XCopyArea(dpy, unshifted, shifted, gc,         /* top left corner */
+	          0, 0,                                       /* src x, y */
+	          c->bw, c->bw,                               /* src w, h */
+	          c->w + c->bw, c->h + c->bw);                /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,                     /* top */
+	          c->bw, 0,                                   /* src x, y */
+	          c->w, c->bw,                                /* src w, h */
+	          0, c->h + c->bw);                           /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,        /* top right corner */
+	          c->w + c->bw, 0,                            /* src x, y */
+	          c->bw, c->bw,                               /* src w, h */
+	          c->w, c->h + c->bw);                        /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,                    /* left */
+	          0, c->bw,                                   /* src x, y */
+	          c->bw, c->h,                                /* src w, h */
+	          c->w + c->bw, 0);                           /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,                   /* right */
+	          c->w + c->bw, c->bw,                        /* src x, y */
+	          c->bw, c->h,                                /* src w, h */
+	          c->w, 0);                                   /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,      /* bottom left corner */
+	          0, c->h + c->bw,                            /* src x, y */
+	          c->bw, c->bw,                               /* src w, h */
+	          c->w + c->bw, c->h);                        /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,                  /* bottom */
+	          c->bw, c->h + c->bw,                        /* src x, y */
+	          c->w, c->bw,                                /* src w, h */
+	          0, c->h);                                   /* dst x, y */
+	XCopyArea(dpy, unshifted, shifted, gc,     /* bottom right corner */
+	          c->w + c->bw, c->h + c->bw,                 /* src x, y */
+	          c->bw, c->bw,                               /* src w, h */
+	          c->w, c->h);                                /* dst x, y */
+
+	XSetWindowBorderPixmap(dpy, c->win, shifted);
+
+	XFreePixmap(dpy, shifted);
+	XFreePixmap(dpy, unshifted);
+	XFreeGC(dpy, gc);
+}
+
+void
 setclientstate(Client *c, long state) {
 	long data[] = { state, None };
 
@@ -1865,6 +1969,7 @@ setup(void) {
 	/* init const variables from config.h */
 	gappx = uselessgap;
 	screenbarriers = barriers;
+	totalborderpx = borders[0] + borders[1] + borders[2];
 
 	/* init screen */
 	screen = DefaultScreen(dpy);
@@ -2214,7 +2319,7 @@ unfocus(Client *c, Bool setfocus) {
 		return;
 	prevclient = c;
 	grabbuttons(c, False);
-	XSetWindowBorder(dpy, c->win, dc.norm[ColBorder]);
+	setborder(c, StateNormal);
 	if(setfocus) {
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
@@ -2498,7 +2603,7 @@ updatewmhints(Client *c) {
 		else {
 			c->isurgent = (wmh->flags & XUrgencyHint) ? True : False;
 			if (c->isurgent)
-				XSetWindowBorder(dpy, c->win, dc.urgbordercolor);
+				setborder(c, StateUrgent);
 		}
 		if(wmh->flags & InputHint)
 			c->neverfocus = !wmh->input;
