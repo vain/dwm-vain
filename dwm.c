@@ -1762,9 +1762,9 @@ setborder(Client *c, enum BorderType state) {
 	Pixmap unshifted, shifted;
 	GC gc;
 	unsigned long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
-	int i, j;
+	int i, j, io;
 	XSegment *segs = NULL;
-	size_t segsi;
+	size_t segsi, bordersi;
 
 	/* X begins tiling the pixmap at the client's origin -- not at the
 	 * border's origin. */
@@ -1790,95 +1790,49 @@ setborder(Client *c, enum BorderType state) {
 		XSetForeground(dpy, gc, colmiddle);
 		XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
 
-		if(borders[0] > 0) {
-			segs = calloc(sizeof(XSegment), borders[0]);
+		for(io = 0; io <= 1; io++) {
+			bordersi = (io == 0 ? 0 : 2);
+			if(borders[bordersi] > 0) {
+				segs = calloc(sizeof(XSegment), 2*borders[bordersi]);
 
-			/* outer left */
-			XSetForeground(dpy, gc, colouter);
-			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
-				segs[segsi].x1 = i;
-				segs[segsi].y1 = i;
-				segs[segsi].x2 = i;
-				segs[segsi].y2 = c->h + 2*c->bw - i - 1;
+				/* left and top */
+				XSetForeground(dpy, gc, (io == 0 ? colouter : colinner));
+				for(i = 0, segsi = 0; i < borders[bordersi]; i++, segsi++) {
+					j = io == 0 ? i : i + borders[0] + borders[1];
+					segs[segsi].x1 = j;
+					segs[segsi].y1 = j;
+					segs[segsi].x2 = j;
+					segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+				}
+				for(i = 0; i < borders[bordersi]; i++, segsi++) {
+					j = io == 0 ? i : i + borders[0] + borders[1];
+					segs[segsi].x1 = j;
+					segs[segsi].y1 = j;
+					segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+					segs[segsi].y2 = j;
+				}
+				XDrawSegments(dpy, unshifted, gc, segs, 2*borders[bordersi]);
+
+				/* bottom and right */
+				XSetForeground(dpy, gc, (io == 0 ? colinner : colouter));
+				for(i = 0, segsi = 0; i < borders[bordersi]; i++, segsi++) {
+					j = io == 0 ? i : i + borders[0] + borders[1];
+					segs[segsi].x1 = j + 1;
+					segs[segsi].y1 = c->h + 2*c->bw - j - 1;
+					segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+					segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+				}
+				for(i = 0; i < borders[bordersi]; i++, segsi++) {
+					j = io == 0 ? i : i + borders[0] + borders[1];
+					segs[segsi].x1 = c->w + 2*c->bw - j - 1;
+					segs[segsi].y1 = j + 1;
+					segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+					segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+				}
+				XDrawSegments(dpy, unshifted, gc, segs, 2*borders[bordersi]);
+
+				free(segs);
 			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
-
-			/* outer top */
-			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
-				segs[segsi].x1 = i;
-				segs[segsi].y1 = i;
-				segs[segsi].x2 = c->w + 2*c->bw - i - 1;
-				segs[segsi].y2 = i;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
-
-			/* outer bottom */
-			XSetForeground(dpy, gc, colinner);
-			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
-				segs[segsi].x1 = i + 1;
-				segs[segsi].y1 = c->h + 2*c->bw - i - 1;
-				segs[segsi].x2 = c->w + 2*c->bw - i - 1;
-				segs[segsi].y2 = c->h + 2*c->bw - i - 1;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
-
-			/* outer right */
-			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
-				segs[segsi].x1 = c->w + 2*c->bw - i - 1;
-				segs[segsi].y1 = i + 1;
-				segs[segsi].x2 = c->w + 2*c->bw - i - 1;
-				segs[segsi].y2 = c->h + 2*c->bw - i - 1;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
-
-			free(segs);
-		}
-		if(borders[2] > 0) {
-			segs = calloc(sizeof(XSegment), borders[2]);
-
-			/* inner left */
-			XSetForeground(dpy, gc, colinner);
-			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
-				j = i + borders[0] + borders[1];
-				segs[segsi].x1 = j;
-				segs[segsi].y1 = j;
-				segs[segsi].x2 = j;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
-
-			/* inner top */
-			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
-				j = i + borders[0] + borders[1];
-				segs[segsi].x1 = j;
-				segs[segsi].y1 = j;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
-				segs[segsi].y2 = j;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
-
-			/* inner bottom */
-			XSetForeground(dpy, gc, colouter);
-			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
-				j = i + borders[0] + borders[1];
-				segs[segsi].x1 = j + 1;
-				segs[segsi].y1 = c->h + 2*c->bw - j - 1;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
-
-			/* inner right */
-			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
-				j = i + borders[0] + borders[1];
-				segs[segsi].x1 = c->w + 2*c->bw - j - 1;
-				segs[segsi].y1 = j + 1;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
-
-			free(segs);
 		}
 	}
 	else {
