@@ -1762,6 +1762,9 @@ setborder(Client *c, enum BorderType state) {
 	Pixmap unshifted, shifted;
 	GC gc;
 	unsigned int long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
+	int i, j;
+	XSegment *segs = NULL;
+	size_t segsi;
 
 	/* X begins tiling the pixmap at the client's origin -- not at the
 	 * border's origin. */
@@ -1783,26 +1786,121 @@ setborder(Client *c, enum BorderType state) {
 		colouter = multiplycolor(colbase, bevelfacts[0]);
 		colmiddle = multiplycolor(colbase, bevelfacts[1]);
 		colinner = multiplycolor(colbase, bevelfacts[2]);
+
+
+		XSetForeground(dpy, gc, colmiddle);
+		XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
+
+		if(borders[0] > 0) {
+			segs = calloc(sizeof(XSegment), borders[0]);
+
+			/* outer left */
+			XSetForeground(dpy, gc, colouter);
+			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
+				segs[segsi].x1 = i;
+				segs[segsi].y1 = i;
+				segs[segsi].x2 = i;
+				segs[segsi].y2 = c->h + 2*c->bw - i - 1;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
+
+			/* outer top */
+			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
+				segs[segsi].x1 = i;
+				segs[segsi].y1 = i;
+				segs[segsi].x2 = c->w + 2*c->bw - i - 1;
+				segs[segsi].y2 = i;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
+
+			/* outer bottom */
+			XSetForeground(dpy, gc, colinner);
+			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
+				segs[segsi].x1 = i + 1;
+				segs[segsi].y1 = c->h + 2*c->bw - i - 1;
+				segs[segsi].x2 = c->w + 2*c->bw - i - 1;
+				segs[segsi].y2 = c->h + 2*c->bw - i - 1;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
+
+			/* outer right */
+			for(i = 0, segsi = 0; i < borders[0]; i++, segsi++) {
+				segs[segsi].x1 = c->w + 2*c->bw - i - 1;
+				segs[segsi].y1 = i + 1;
+				segs[segsi].x2 = c->w + 2*c->bw - i - 1;
+				segs[segsi].y2 = c->h + 2*c->bw - i - 1;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[0]);
+
+			free(segs);
+		}
+		if(borders[2] > 0) {
+			segs = calloc(sizeof(XSegment), borders[2]);
+
+			/* inner left */
+			XSetForeground(dpy, gc, colinner);
+			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
+				j = i + borders[0] + borders[1];
+				segs[segsi].x1 = j;
+				segs[segsi].y1 = j;
+				segs[segsi].x2 = j;
+				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
+
+			/* inner top */
+			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
+				j = i + borders[0] + borders[1];
+				segs[segsi].x1 = j;
+				segs[segsi].y1 = j;
+				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+				segs[segsi].y2 = j;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
+
+			/* inner bottom */
+			XSetForeground(dpy, gc, colouter);
+			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
+				j = i + borders[0] + borders[1];
+				segs[segsi].x1 = j + 1;
+				segs[segsi].y1 = c->h + 2*c->bw - j - 1;
+				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
+
+			/* inner right */
+			for(i = 0, segsi = 0; i < borders[2]; i++, segsi++) {
+				j = i + borders[0] + borders[1];
+				segs[segsi].x1 = c->w + 2*c->bw - j - 1;
+				segs[segsi].y1 = j + 1;
+				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+			}
+			XDrawSegments(dpy, unshifted, gc, segs, borders[2]);
+
+			free(segs);
+		}
 	}
 	else {
 		colouter = dc.linecolor;
 		colmiddle = colbase;
 		colinner = dc.linecolor;
+
+		XSetForeground(dpy, gc, colouter);
+		XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
+
+		XSetForeground(dpy, gc, colmiddle);
+		XFillRectangle(dpy, unshifted, gc,
+		               borders[0], borders[0],
+		               c->w + 2*c->bw - 2*borders[0], c->h + 2*c->bw - 2*borders[0]);
+
+		XSetForeground(dpy, gc, colinner);
+		XFillRectangle(dpy, unshifted, gc,
+		               borders[0] + borders[1], borders[0] + borders[1],
+		               c->w + 2*c->bw - 2*(borders[0] + borders[1]),
+		               c->h + 2*c->bw - 2*(borders[0] + borders[1]));
 	}
-
-	XSetForeground(dpy, gc, colouter);
-	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
-
-	XSetForeground(dpy, gc, colmiddle);
-	XFillRectangle(dpy, unshifted, gc,
-	               borders[0], borders[0],
-	               c->w + 2*c->bw - 2*borders[0], c->h + 2*c->bw - 2*borders[0]);
-
-	XSetForeground(dpy, gc, colinner);
-	XFillRectangle(dpy, unshifted, gc,
-	               borders[0] + borders[1], borders[0] + borders[1],
-	               c->w + 2*c->bw - 2*(borders[0] + borders[1]),
-	               c->h + 2*c->bw - 2*(borders[0] + borders[1]));
 
 	/* Shift (XXX can be simplified) */
 	XCopyArea(dpy, unshifted, shifted, gc,         /* top left corner */
