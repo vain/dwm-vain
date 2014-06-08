@@ -10,6 +10,8 @@ all: options dwm
 
 options:
 	@echo dwm build options:
+	@echo "VERSION  = ${VERSION}"
+	@echo "YEAR     = ${YEAR}"
 	@echo "CFLAGS   = ${CFLAGS}"
 	@echo "LDFLAGS  = ${LDFLAGS}"
 	@echo "CC       = ${CC}"
