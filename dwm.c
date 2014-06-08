@@ -281,7 +281,9 @@ static void zoom(const Arg *arg);
 static Client *prevclient = NULL;
 static const char broken[] = "broken";
 static char stext[256];
+static int gappx;
 static int screen;
+static int screenbarriers;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh, blw = 0;      /* bar geometry */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
@@ -1859,6 +1861,10 @@ setup(void) {
 
 	/* clean up any zombies immediately */
 	sigchld(0);
+
+	/* init const variables from config.h */
+	gappx = uselessgap;
+	screenbarriers = barriers;
 
 	/* init screen */
 	screen = DefaultScreen(dpy);
