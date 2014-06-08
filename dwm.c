@@ -621,7 +621,8 @@ configure(Client *c) {
 	ce.above = None;
 	ce.override_redirect = False;
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
-	setborder(c, (c->isurgent ? StateUrgent : (c->mon->sel == c ? StateFocused : StateNormal)));
+	setborder(c, (c->isurgent ? StateUrgent : (c->mon == selmon && c->mon->sel == c ?
+	                                           StateFocused : StateNormal)));
 }
 
 void
