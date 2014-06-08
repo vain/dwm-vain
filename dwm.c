@@ -174,8 +174,8 @@ static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
 static void centerfloater(const Arg *arg);
 static void checkotherwm(void);
-static void cleanup(void);
 static void cleanupmon(Monitor *mon);
+static void cleanup(void);
 static void clearurgent(Client *c);
 static void clientmessage(XEvent *e);
 static void configure(Client *c);
@@ -223,12 +223,12 @@ static Client *nexttiled(Client *c);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
-static void restart(const Arg *arg);
 static Monitor *recttomon(int x, int y, int w, int h);
 static void resize(Client *c, int x, int y, int w, int h, Bool interact);
 static void resizeclient(Client *c, int x, int y, int w, int h);
 static void resizemouse(const Arg *arg);
 static void restack(Monitor *m);
+static void restart(const Arg *arg);
 static void run(void);
 static void scan(void);
 static Bool sendevent(Client *c, Atom proto);
@@ -247,8 +247,8 @@ static void slinp(Monitor *);
 static void spawn(const Arg *arg);
 static void swapfocus();
 static void tag(const Arg *arg);
-static void tagrel(const Arg *arg);
 static void tagmon(const Arg *arg);
+static void tagrel(const Arg *arg);
 static int textnw(const char *text, unsigned int len);
 static void tile(Monitor *);
 static void togglebar(const Arg *arg);
@@ -259,15 +259,15 @@ static void toggleview(const Arg *arg);
 static void unfocus(Client *c, Bool setfocus);
 static void unmanage(Client *c, Bool destroyed);
 static void unmapnotify(XEvent *e);
-static Bool updategeom(void);
 static void updatebarpos(Monitor *m);
 static void updatebars(void);
 static void updateclientlist(void);
+static Bool updategeom(void);
 static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
 static void updatestatus(void);
-static void updatewindowtype(Client *c);
 static void updatetitle(Client *c);
+static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
 static Client *wintoclient(Window w);
@@ -525,6 +525,21 @@ checkotherwm(void) {
 }
 
 void
+cleanupmon(Monitor *mon) {
+	Monitor *m;
+
+	if(mon == mons)
+		mons = mons->next;
+	else {
+		for(m = mons; m && m->next != mon; m = m->next);
+		m->next = mon->next;
+	}
+	XUnmapWindow(dpy, mon->barwin);
+	XDestroyWindow(dpy, mon->barwin);
+	free(mon);
+}
+
+void
 cleanup(void) {
 	Arg a = {.ui = ~0};
 	Layout foo = { "", NULL };
@@ -551,21 +566,6 @@ cleanup(void) {
 	XSync(dpy, False);
 	XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
 	XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
-}
-
-void
-cleanupmon(Monitor *mon) {
-	Monitor *m;
-
-	if(mon == mons)
-		mons = mons->next;
-	else {
-		for(m = mons; m && m->next != mon; m = m->next);
-		m->next = mon->next;
-	}
-	XUnmapWindow(dpy, mon->barwin);
-	XDestroyWindow(dpy, mon->barwin);
-	free(mon);
 }
 
 void
@@ -1575,12 +1575,6 @@ quit(const Arg *arg) {
 	running = False;
 }
 
-void
-restart(const Arg *arg) {
-	dorestart = True;
-	running = False;
-}
-
 Monitor *
 recttomon(int x, int y, int w, int h) {
 	Monitor *m, *r = selmon;
@@ -1688,6 +1682,12 @@ restack(Monitor *m) {
 	}
 	XSync(dpy, False);
 	while(XCheckMaskEvent(dpy, EnterWindowMask, &ev));
+}
+
+void
+restart(const Arg *arg) {
+	dorestart = True;
+	running = False;
 }
 
 void
@@ -2092,6 +2092,13 @@ tag(const Arg *arg) {
 }
 
 void
+tagmon(const Arg *arg) {
+	if(!selmon->sel || !mons->next)
+		return;
+	sendmon(selmon->sel, dirtomon(arg->i));
+}
+
+void
 tagrel(const Arg *arg) {
 	Arg shifted;
 	if(!selmon->sel)
@@ -2099,13 +2106,6 @@ tagrel(const Arg *arg) {
 	shifted.ui = selmon->sel->tags;
 	shiftmask(&shifted.ui, arg->i);
 	tag(&shifted);
-}
-
-void
-tagmon(const Arg *arg) {
-	if(!selmon->sel || !mons->next)
-		return;
-	sendmon(selmon->sel, dirtomon(arg->i));
 }
 
 int
@@ -2467,15 +2467,6 @@ updatetitle(Client *c) {
 }
 
 void
-updatestatus(void) {
-	Monitor *m;
-	if(!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
-		strcpy(stext, "dwm-"VERSION);
-	for(m = mons; m; m = m->next)
-		drawbar(m);
-}
-
-void
 updatewindowtype(Client *c) {
 	Atom state = getatomprop(c, netatom[NetWMState]);
 	Atom wtype = getatomprop(c, netatom[NetWMWindowType]);
@@ -2484,6 +2475,15 @@ updatewindowtype(Client *c) {
 		setfullscreen(c, True);
 	if(wtype == netatom[NetWMWindowTypeDialog])
 		c->isfloating = True;
+}
+
+void
+updatestatus(void) {
+	Monitor *m;
+	if(!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
+		strcpy(stext, "dwm-"VERSION);
+	for(m = mons; m; m = m->next)
+		drawbar(m);
 }
 
 void
