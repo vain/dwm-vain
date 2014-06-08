@@ -1761,7 +1761,7 @@ void
 setborder(Client *c, enum BorderType state) {
 	Pixmap unshifted, shifted;
 	GC gc;
-	unsigned int long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
+	unsigned long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
 	int i, j;
 	XSegment *segs = NULL;
 	size_t segsi;
@@ -1786,7 +1786,6 @@ setborder(Client *c, enum BorderType state) {
 		colouter = multiplycolor(colbase, bevelfacts[0]);
 		colmiddle = multiplycolor(colbase, bevelfacts[1]);
 		colinner = multiplycolor(colbase, bevelfacts[2]);
-
 
 		XSetForeground(dpy, gc, colmiddle);
 		XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
