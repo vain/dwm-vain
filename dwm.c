@@ -512,8 +512,8 @@ centerfloater(const Arg *arg) {
 	   !(selmon->sel->isfloating || !selmon->lt->arrange))
 		return;
 	resize(selmon->sel,
-			selmon->wx + 0.5 * (selmon->ww - selmon->sel->w),
-			selmon->wy + 0.5 * (selmon->wh - selmon->sel->h),
+			selmon->wx + 0.5 * (selmon->ww - selmon->sel->w - 2*selmon->sel->bw),
+			selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*selmon->sel->bw),
 			selmon->sel->w, selmon->sel->h,
 			False);
 }
