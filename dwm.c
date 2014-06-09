@@ -1782,7 +1782,7 @@ setborder(Client *c, enum BorderType state) {
 	                        DefaultDepth(dpy, screen));
 
 	/* Draw unshifted */
-	switch (state) {
+	switch(state) {
 		case StateNormal: colbase = dc.norm[ColBorder]; break;
 		case StateFocused: colbase = dc.sel[ColBorder]; break;
 		case StateUrgent: colbase = dc.urgbordercolor; break;
