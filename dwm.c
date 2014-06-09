@@ -630,6 +630,7 @@ configurenotify(XEvent *e) {
 	Monitor *m;
 	XConfigureEvent *ev = &e->xconfigure;
 	Bool dirty;
+	Client *c = wintoclient(ev->window);
 
 	// TODO: updategeom handling sucks, needs to be simplified
 	if(ev->window == root) {
@@ -646,6 +647,10 @@ configurenotify(XEvent *e) {
 			focus(NULL);
 			arrange(NULL);
 		}
+	}
+	else if(c) {
+		setborder(c, (c->isurgent ? StateUrgent : (c->mon == selmon && c->mon->sel == c ?
+		                                           StateFocused : StateNormal)));
 	}
 }
 
