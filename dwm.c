@@ -1856,39 +1856,61 @@ setborder(Client *c, enum BorderType state) {
 		               c->h + 2*c->bw - 2*(borders[0] + borders[1]));
 	}
 
-	/* Shift (XXX can be simplified) */
+	/* Shift
+	 *
+	 * This is what we have drawn above:
+	 *
+	 *        +----+-----------------+----+
+	 *        | tl |   top border    | tr |
+	 *        +----+-----------------+----+
+	 *        | le |   Client area,  | ri |
+	 *        | ft |    invisible    | gh |
+	 *        |    |                 | t  |
+	 *        +----+-----------------+----+
+	 *        | bl |  bottom border  | br |
+	 *        +----+-----------------+----+
+	 *
+	 * However, X starts tiling our pixmap at the client's origin (top
+	 * left corner). This means we have to layout our pixmap like this:
+	 *
+	 *        +=================+====+----+
+	 *        #   Client area,  | ri # le |
+	 *        #    invisible    | gh # ft |
+	 *        #                 | t  #    |
+	 *        +-----------------+----+----+
+	 *        #  bottom border  | br # bl |
+	 *        +=================+====+----+
+	 *        |   top border    | tr | tl |
+	 *        +-----------------+----+----+
+	 *
+	 * The area enclosed in "=" and "#" is directly visible. The
+	 * "surplus" parts (like left, bottom left, ...) will be wrapped
+	 * around!
+	 *
+	 * I could have drawn everything at it's final position, but I
+	 * wanted my drawing algorithms to be simple and independent of this
+	 * weird layout.
+	 */
 	XCopyArea(dpy, unshifted, shifted, gc,         /* top left corner */
 	          0, 0,                                       /* src x, y */
 	          c->bw, c->bw,                               /* src w, h */
 	          c->w + c->bw, c->h + c->bw);                /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,                     /* top */
+	XCopyArea(dpy, unshifted, shifted, gc,       /* top and top right */
 	          c->bw, 0,                                   /* src x, y */
-	          c->w, c->bw,                                /* src w, h */
+	          c->w + c->bw, c->bw,                        /* src w, h */
 	          0, c->h + c->bw);                           /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,        /* top right corner */
-	          c->w + c->bw, 0,                            /* src x, y */
-	          c->bw, c->bw,                               /* src w, h */
-	          c->w, c->h + c->bw);                        /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,                    /* left */
+	XCopyArea(dpy, unshifted, shifted, gc,    /* left and bottom left */
 	          0, c->bw,                                   /* src x, y */
-	          c->bw, c->h,                                /* src w, h */
+	          c->bw, c->h + c->bw,                        /* src w, h */
 	          c->w + c->bw, 0);                           /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,                   /* right */
+	XCopyArea(dpy, unshifted, shifted, gc,  /* right and bottom right */
 	          c->w + c->bw, c->bw,                        /* src x, y */
-	          c->bw, c->h,                                /* src w, h */
+	          c->bw, c->h + c->bw,                        /* src w, h */
 	          c->w, 0);                                   /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,      /* bottom left corner */
-	          0, c->h + c->bw,                            /* src x, y */
-	          c->bw, c->bw,                               /* src w, h */
-	          c->w + c->bw, c->h);                        /* dst x, y */
 	XCopyArea(dpy, unshifted, shifted, gc,                  /* bottom */
 	          c->bw, c->h + c->bw,                        /* src x, y */
 	          c->w, c->bw,                                /* src w, h */
 	          0, c->h);                                   /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,     /* bottom right corner */
-	          c->w + c->bw, c->h + c->bw,                 /* src x, y */
-	          c->bw, c->bw,                               /* src w, h */
-	          c->w, c->h);                                /* dst x, y */
 
 	XSetWindowBorderPixmap(dpy, c->win, shifted);
 
