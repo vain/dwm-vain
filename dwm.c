@@ -66,7 +66,7 @@ enum { NetSupported, NetWMName, NetWMState,
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
 enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle,
        ClkClientWin, ClkRootWin, ClkLast };             /* clicks */
-enum BorderType { StateNormal, StateFocused, StateUrgent };
+enum BorderType { StateNormal, StateFocused, StateUrgent, StateAuto };
 
 typedef union {
 	int i;
@@ -621,8 +621,7 @@ configure(Client *c) {
 	ce.above = None;
 	ce.override_redirect = False;
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
-	setborder(c, (c->isurgent ? StateUrgent : (c->mon == selmon && c->mon->sel == c ?
-	                                           StateFocused : StateNormal)));
+	setborder(c, StateAuto);
 }
 
 void
@@ -649,8 +648,7 @@ configurenotify(XEvent *e) {
 		}
 	}
 	else if(c) {
-		setborder(c, (c->isurgent ? StateUrgent : (c->mon == selmon && c->mon->sel == c ?
-		                                           StateFocused : StateNormal)));
+		setborder(c, StateAuto);
 	}
 }
 
@@ -1772,6 +1770,12 @@ setborder(Client *c, enum BorderType state) {
 	XSegment *segs = NULL;
 	size_t segsi, bordersi;
 
+	if(state == StateAuto) {
+		state = (c->isurgent ? StateUrgent :
+		                       (c->mon == selmon && c->mon->sel == c ? StateFocused :
+		                                                               StateNormal));
+	}
+
 	/* X begins tiling the pixmap at the client's origin -- not at the
 	 * border's origin. */
 
@@ -1786,6 +1790,7 @@ setborder(Client *c, enum BorderType state) {
 		case StateNormal: colbase = dc.norm[ColBorder]; break;
 		case StateFocused: colbase = dc.sel[ColBorder]; break;
 		case StateUrgent: colbase = dc.urgbordercolor; break;
+		case StateAuto: /* silence compiler warning */ break;
 	}
 
 	if(beveledborder) {
