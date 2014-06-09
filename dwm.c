@@ -1805,6 +1805,8 @@ setborder(Client *c, enum BorderType state) {
 			bordersi = (io == 0 ? 0 : 2);
 			if(borders[bordersi] > 0) {
 				segs = calloc(sizeof(XSegment), 2*borders[bordersi]);
+				if(!segs)
+					die("fatal: could not malloc() for pixmap border\n");
 
 				/* left and top */
 				XSetForeground(dpy, gc, (io == 0 ? colouter : colinner));
