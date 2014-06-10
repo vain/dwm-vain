@@ -1768,6 +1768,7 @@ setborder(Client *c, enum BorderType state) {
 	unsigned long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
 	int i, j, io;
 	XSegment *segs = NULL;
+	XSegment cuts[8];
 	size_t segsi, bordersi;
 
 	if(state == StateAuto) {
@@ -1846,6 +1847,63 @@ setborder(Client *c, enum BorderType state) {
 
 				free(segs);
 			}
+		}
+
+		if(bevelcuts && (borders[0] > 0 || borders[2] > 0)) {
+			/* Top left, top right, bottom left, bottom right. */
+			cuts[0].x1 = cuts[0].x2 = 3*c->bw;
+			cuts[0].y1 = MAX(MIN(1, borders[0] - 1), 0);
+			cuts[0].y2 = MAX(c->bw - 2, borders[0] + borders[1] - 1);
+
+			cuts[1].x1 = cuts[1].x2 = c->w - c->bw;
+			cuts[1].y1 = cuts[0].y1;
+			cuts[1].y2 = cuts[0].y2;
+
+			cuts[2].x1 = cuts[0].x1;
+			cuts[2].x2 = cuts[0].x2;
+			cuts[2].y1 = cuts[0].y1 + c->h + c->bw;
+			cuts[2].y2 = cuts[0].y2 + c->h + c->bw;
+
+			cuts[3].x1 = cuts[1].x1;
+			cuts[3].x2 = cuts[1].x2;
+			cuts[3].y1 = cuts[1].y1 + c->h + c->bw;
+			cuts[3].y2 = cuts[1].y2 + c->h + c->bw;
+
+			/* Left top, left bottom, right top, right bottom. */
+			cuts[4].x1 = cuts[0].y1;
+			cuts[4].y1 = cuts[0].x1;
+			cuts[4].x2 = cuts[0].y2;
+			cuts[4].y2 = cuts[0].x2;
+
+			cuts[5].x1 = cuts[4].x1;
+			cuts[5].x2 = cuts[4].x2;
+			cuts[5].y1 = cuts[5].y2 = c->h - c->bw;
+
+			cuts[6].x1 = cuts[4].x1 + c->w + c->bw;
+			cuts[6].x2 = cuts[4].x2 + c->w + c->bw;
+			cuts[6].y1 = cuts[4].y1;
+			cuts[6].y2 = cuts[4].y2;
+
+			cuts[7].x1 = cuts[5].x1 + c->w + c->bw;
+			cuts[7].x2 = cuts[5].x2 + c->w + c->bw;
+			cuts[7].y1 = cuts[5].y1;
+			cuts[7].y2 = cuts[5].y2;
+
+			/* Draw bright segments. */
+			XSetForeground(dpy, gc, colouter);
+			XDrawSegments(dpy, unshifted, gc, cuts, 8);
+
+			/* Shift them by 1px and draw dark segments. */
+			for(segsi = 0; segsi <= 3; segsi++) {
+				cuts[segsi].x1--;
+				cuts[segsi].x2--;
+			}
+			for(segsi = 4; segsi <= 7; segsi++) {
+				cuts[segsi].y1--;
+				cuts[segsi].y2--;
+			}
+			XSetForeground(dpy, gc, colinner);
+			XDrawSegments(dpy, unshifted, gc, cuts, 8);
 		}
 	}
 	else {

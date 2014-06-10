@@ -16,6 +16,7 @@ static const char linecolor[]       = "#000000";
 static const char urgbordercolor[]  = "#AA0000";
 static const unsigned int borders[] = { 2, 3, 2 };  /* outer, middle, inner border */
 static const Bool beveledborder     = True;
+static const Bool bevelcuts         = True;
 static const double bevelfacts[]    = { 1.25, 1.0, 0.5 }; /* multiply outer/middle/inner bordercolor with x */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const int uselessgap         = 5;        /* useless gap */
