@@ -1849,7 +1849,8 @@ setborder(Client *c, enum BorderType state) {
 			}
 		}
 
-		if(bevelcuts && (borders[0] > 0 || borders[2] > 0)) {
+		if(bevelcuts && (borders[0] > 0 || borders[2] > 0) &&
+		   (c->w > 4*(c->bw + 1) && c->h > 4*(c->bw + 1))) {
 			/* Top left, top right, bottom left, bottom right. */
 			cuts[0].x1 = cuts[0].x2 = 3*c->bw;
 			cuts[0].y1 = MAX(MIN(1, borders[0] - 1), 0);
