@@ -10,16 +10,12 @@ PREFIX = /usr/local
 X11INC = /usr/X11R6/include
 X11LIB = /usr/X11R6/lib
 
-# Xinerama, comment if you don't want it
-XINERAMALIBS  = -lXinerama
-XINERAMAFLAGS = -DXINERAMA
-
 # includes and libs
 INCS = -I${X11INC}
-LIBS = -L${X11LIB} -lX11 ${XINERAMALIBS} -lXfixes
+LIBS = -L${X11LIB} -lX11 -lXinerama -lXfixes
 
 # flags
-CPPFLAGS = -D_BSD_SOURCE -D_POSIX_C_SOURCE=2 -DVERSION=\"${VERSION}\" -DYEAR=\"${YEAR}\" ${XINERAMAFLAGS}
+CPPFLAGS = -D_BSD_SOURCE -D_POSIX_C_SOURCE=2 -DVERSION=\"${VERSION}\" -DYEAR=\"${YEAR}\"
 CFLAGS   = -std=c99 -pedantic -Wall -Wno-deprecated-declarations -O2 ${INCS} ${CPPFLAGS}
 LDFLAGS  = -s ${LIBS}
 

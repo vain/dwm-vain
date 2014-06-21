@@ -37,9 +37,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
-#ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
-#endif /* XINERAMA */
 #include <X11/extensions/Xfixes.h>
 
 /* macros */
@@ -1205,7 +1203,6 @@ initfont(const char *fontstr) {
 	dc.font.height = dc.font.ascent + dc.font.descent;
 }
 
-#ifdef XINERAMA
 static Bool
 isuniquegeom(XineramaScreenInfo *unique, size_t n, XineramaScreenInfo *info) {
 	while(n--)
@@ -1214,7 +1211,6 @@ isuniquegeom(XineramaScreenInfo *unique, size_t n, XineramaScreenInfo *info) {
 			return False;
 	return True;
 }
-#endif /* XINERAMA */
 
 void
 keypress(XEvent *e) {
@@ -2513,7 +2509,6 @@ updategeom(void) {
 
 	destroyallbarriers();
 
-#ifdef XINERAMA
 	if(XineramaIsActive(dpy)) {
 		int i, j, n, nn;
 		Client *c;
@@ -2574,8 +2569,6 @@ updategeom(void) {
 		free(unique);
 	}
 	else
-#endif /* XINERAMA */
-	/* default monitor setup */
 	{
 		if(!mons)
 			mons = createmon();
