@@ -277,7 +277,6 @@ static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
-static void zoom(const Arg *arg);
 
 /* variables */
 static Client *prevclient = NULL;
@@ -2782,20 +2781,6 @@ int
 xerrorstart(Display *dpy, XErrorEvent *ee) {
 	die("dwm: another window manager is already running\n");
 	return -1;
-}
-
-void
-zoom(const Arg *arg) {
-	Client *c = selmon->sel;
-	prevclient = selmon->clients;
-
-	if(!selmon->lt->arrange
-	|| (selmon->sel && selmon->sel->isfloating))
-		return;
-	if(c == nexttiled(selmon->clients))
-		if(!c || !(c = nexttiled(c->next)))
-			return;
-	pop(c);
 }
 
 int
