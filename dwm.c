@@ -1348,6 +1348,7 @@ modgap(const Arg *a) {
 
 	destroyallbarriers();
 	gappx += a->i;
+	fprintf(stderr, "dwm: gap = %d\n", gappx);
 	if(gappx < 0)
 		gappx = 0;
 	for(m = mons; m; m = m->next)
