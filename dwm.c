@@ -110,13 +110,13 @@ typedef struct {
 	unsigned long urgfgcolor;
 	Drawable drawable;
 	GC gc;
-	struct {
+	struct FontInfo {
 		int ascent;
 		int descent;
 		int height;
 		XFontSet set;
 		XFontStruct *xfont;
-	} font;
+	} font, fonttitle;
 } DC; /* draw context */
 
 typedef struct {
@@ -207,7 +207,7 @@ static Bool gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, Bool focused);
 static void grabkeys(void);
 static void incnmaster(const Arg *arg);
-static void initfont(const char *fontstr);
+static void initfont(const char *fontstr, struct FontInfo *fi);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
@@ -905,7 +905,7 @@ drawtitletext(const char *text, unsigned long col, GC gc, Drawable d, int w) {
 	if(!text)
 		return;
 	olen = strlen(text);
-	h = dc.font.ascent + dc.font.descent;
+	h = dc.fonttitle.ascent + dc.fonttitle.descent;
 	/* shorten text if necessary */
 	for(len = MIN(olen, sizeof buf); len && textnw(text, len) > w - h; len--);
 	if(!len)
@@ -914,10 +914,11 @@ drawtitletext(const char *text, unsigned long col, GC gc, Drawable d, int w) {
 	if(len < olen)
 		for(i = len; i && i > len - 3; buf[--i] = '.');
 	x = titlepx + totalborderpx + beveltitle + (h / 2) + (w / 2) - TEXTW(text) / 2;
-	y = totalborderpx + beveltitle + ((dc.font.height + 2) / 2) - (h / 2) + dc.font.ascent;
+	y = totalborderpx + beveltitle + ((dc.fonttitle.height + 2) / 2) - (h / 2) +
+	    dc.fonttitle.ascent;
 	XSetForeground(dpy, gc, col);
-	if(dc.font.set)
-		XmbDrawString(dpy, d, dc.font.set, gc, x, y, buf, len);
+	if(dc.fonttitle.set)
+		XmbDrawString(dpy, d, dc.fonttitle.set, gc, x, y, buf, len);
 	else
 		XDrawString(dpy, d, gc, x, y, buf, len);
 }
@@ -1156,37 +1157,37 @@ incnmaster(const Arg *arg) {
 }
 
 void
-initfont(const char *fontstr) {
+initfont(const char *fontstr, struct FontInfo *fi) {
 	char *def, **missing;
 	int n;
 
-	dc.font.set = XCreateFontSet(dpy, fontstr, &missing, &n, &def);
+	fi->set = XCreateFontSet(dpy, fontstr, &missing, &n, &def);
 	if(missing) {
 		while(n--)
 			fprintf(stderr, "dwm: missing fontset: %s\n", missing[n]);
 		XFreeStringList(missing);
 	}
-	if(dc.font.set) {
+	if(fi->set) {
 		XFontStruct **xfonts;
 		char **font_names;
 
-		dc.font.ascent = dc.font.descent = 0;
-		XExtentsOfFontSet(dc.font.set);
-		n = XFontsOfFontSet(dc.font.set, &xfonts, &font_names);
+		fi->ascent = fi->descent = 0;
+		XExtentsOfFontSet(fi->set);
+		n = XFontsOfFontSet(fi->set, &xfonts, &font_names);
 		while(n--) {
-			dc.font.ascent = MAX(dc.font.ascent, (*xfonts)->ascent);
-			dc.font.descent = MAX(dc.font.descent,(*xfonts)->descent);
+			fi->ascent = MAX(fi->ascent, (*xfonts)->ascent);
+			fi->descent = MAX(fi->descent,(*xfonts)->descent);
 			xfonts++;
 		}
 	}
 	else {
-		if(!(dc.font.xfont = XLoadQueryFont(dpy, fontstr))
-		&& !(dc.font.xfont = XLoadQueryFont(dpy, "fixed")))
+		if(!(fi->xfont = XLoadQueryFont(dpy, fontstr))
+		&& !(fi->xfont = XLoadQueryFont(dpy, "fixed")))
 			die("error, cannot load font: '%s'\n", fontstr);
-		dc.font.ascent = dc.font.xfont->ascent;
-		dc.font.descent = dc.font.xfont->descent;
+		fi->ascent = fi->xfont->ascent;
+		fi->descent = fi->xfont->descent;
 	}
-	dc.font.height = dc.font.ascent + dc.font.descent;
+	fi->height = fi->ascent + fi->descent;
 }
 
 static Bool
@@ -2122,12 +2123,13 @@ setup(void) {
 	/* init screen */
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	initfont(font);
+	initfont(font, &dc.font);
+	initfont(fonttitle, &dc.fonttitle);
 	sw = DisplayWidth(dpy, screen);
 	sh = DisplayHeight(dpy, screen);
 	bh = dc.h = dc.font.height + 3;
 	/* TODO query shape extension */
-	titlepx = dc.font.height + 2 + 2*beveltitle;
+	titlepx = dc.fonttitle.height + 2 + 2*beveltitle;
 	if(!XQueryExtension(dpy, "XFIXES", &fixes_opcode, &fixes_event_base,
 		&fixes_error_base)) {
 		fprintf(stderr, "dwm: No XFIXES extension available,"
