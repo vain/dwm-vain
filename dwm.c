@@ -54,7 +54,7 @@
 #define WIDTH(X)                ((X)->w + 2 * totalborderpx)
 #define HEIGHT(X)               ((X)->h + 2 * totalborderpx + titlepx)
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
-#define TEXTW(X)                (textnw(X, strlen(X)) + dc.font.height)
+#define TEXTW(X)                (textnw(X, strlen(X), &dc.font) + dc.font.height)
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast };        /* cursor */
@@ -251,7 +251,7 @@ static void swapfocus();
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tagrel(const Arg *arg);
-static int textnw(const char *text, unsigned int len);
+static int textnw(const char *text, unsigned int len, struct FontInfo *fi);
 static void tile(Monitor *);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
@@ -882,7 +882,7 @@ drawtext(const char *text, unsigned long col[ColLast], Bool invert) {
 	y = dc.y + (dc.h / 2) - (h / 2) + dc.font.ascent;
 	x = dc.x + (h / 2);
 	/* shorten text if necessary */
-	for(len = MIN(olen, sizeof buf); len && textnw(text, len) > dc.w - h; len--);
+	for(len = MIN(olen, sizeof buf); len && textnw(text, len, &dc.font) > dc.w - h; len--);
 	if(!len)
 		return;
 	memcpy(buf, text, len);
@@ -907,13 +907,14 @@ drawtitletext(const char *text, unsigned long col, GC gc, Drawable d, int w) {
 	olen = strlen(text);
 	h = dc.fonttitle.ascent + dc.fonttitle.descent;
 	/* shorten text if necessary */
-	for(len = MIN(olen, sizeof buf); len && textnw(text, len) > w - h; len--);
+	for(len = MIN(olen, sizeof buf); len && textnw(text, len, &dc.fonttitle) > w - h; len--);
 	if(!len)
 		return;
 	memcpy(buf, text, len);
 	if(len < olen)
 		for(i = len; i && i > len - 3; buf[--i] = '.');
-	x = titlepx + totalborderpx + beveltitle + (h / 2) + (w / 2) - TEXTW(text) / 2;
+	x = titlepx + totalborderpx + beveltitle + (h / 2)
+	    + (w / 2) - textnw(text, len, &dc.fonttitle) / 2;
 	y = totalborderpx + beveltitle + ((dc.fonttitle.height + 2) / 2) - (h / 2) +
 	    dc.fonttitle.ascent;
 	XSetForeground(dpy, gc, col);
@@ -1920,7 +1921,7 @@ setborder(Client *c, enum BorderType state) {
 		case StateUrgent: colbase = dc.urgfgcolor; break;
 		case StateAuto: /* silence compiler warning */ break;
 	}
-	drawtitletext(c->name, colbase, gc, unshifted, c->w);
+	drawtitletext(c->name, colbase, gc, unshifted, c->w - 2*beveltitle);
 
 	/* Shift
 	 *
@@ -2367,14 +2368,14 @@ tagrel(const Arg *arg) {
 }
 
 int
-textnw(const char *text, unsigned int len) {
+textnw(const char *text, unsigned int len, struct FontInfo *fi) {
 	XRectangle r;
 
-	if(dc.font.set) {
-		XmbTextExtents(dc.font.set, text, len, NULL, &r);
+	if(fi->set) {
+		XmbTextExtents(fi->set, text, len, NULL, &r);
 		return r.width;
 	}
-	return XTextWidth(dc.font.xfont, text, len);
+	return XTextWidth(fi->xfont, text, len);
 }
 
 void
