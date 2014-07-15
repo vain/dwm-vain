@@ -1,26 +1,28 @@
 /* See LICENSE file for copyright and license details. */
 
 /* appearance */
-static const char font[]            = "-*-terminus-medium-r-*-*-16-*-*-*-*-*-*-*";
-static const char normbordercolor[] = "#444444";
-static const char normbgcolor[]     = "#222222";
-static const char normfgcolor[]     = "#bbbbbb";
-static const char selbordercolor[]  = "#005577";
-static const char selbgcolor[]      = "#005577";
-static const char selfgcolor[]      = "#eeeeee";
-static const char infobgcolor[]     = "#000000";
-static const char infofgcolor[]     = "#cccccc";
-static const char infoselbgcolor[]  = "#004466";
-static const char infoselfgcolor[]  = "#dddddd";
-static const char linecolor[]       = "#000000";
-static const char urgbordercolor[]  = "#AA0000";
-static const unsigned int borders[] = { 2, 3, 2 };  /* outer, middle, inner border */
-static const double bevelfacts[]    = { 1.25, 1.0, 0.5 }; /* multiply outer/middle/inner bordercolor with x */
-static const unsigned int snap      = 32;       /* snap pixel */
-static const int uselessgap         = 5;        /* useless gap */
-static const Bool showbar           = True;     /* False means no bar */
-static const Bool topbar            = True;     /* False means bottom bar */
-static const Bool barriers          = False;    /* Put pointer barriers around the WA */
+static const char font[]             = "-*-terminus-medium-r-*-*-16-*-*-*-*-*-*-*";
+static const char normbordercolor[]  = "#444444";
+static const char normbgcolor[]      = "#222222";
+static const char normfgcolor[]      = "#bbbbbb";
+static const char selbordercolor[]   = "#005577";
+static const char selbgcolor[]       = "#005577";
+static const char selfgcolor[]       = "#eeeeee";
+static const char infobgcolor[]      = "#000000";
+static const char infofgcolor[]      = "#cccccc";
+static const char infoselbgcolor[]   = "#004466";
+static const char infoselfgcolor[]   = "#dddddd";
+static const char linecolor[]        = "#000000";
+static const char urgbordercolor[]   = "#AA0000";
+static const char urgfgcolor[]       = "#000000";
+static const unsigned int borders[]  = { 2, 3, 2 };  /* outer, middle, inner border */
+static const double bevelfacts[]     = { 1.25, 1.0, 0.5 }; /* multiply outer/middle/inner bordercolor with x */
+static const unsigned int beveltitle = 2;        /* bevel size of title area */
+static const unsigned int snap       = 32;       /* snap pixel */
+static const int uselessgap          = 5;        /* useless gap */
+static const Bool showbar            = True;     /* False means no bar */
+static const Bool topbar             = True;     /* False means bottom bar */
+static const Bool barriers           = False;    /* Put pointer barriers around the WA */
 
 /* tagging */
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };

@@ -39,6 +39,7 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/Xfixes.h>
+#include <X11/extensions/shape.h>
 
 /* macros */
 #define BUTTONMASK              (ButtonPressMask|ButtonReleaseMask)
@@ -50,8 +51,8 @@
 #define MAX(A, B)               ((A) > (B) ? (A) : (B))
 #define MIN(A, B)               ((A) < (B) ? (A) : (B))
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
-#define WIDTH(X)                ((X)->w + 2 * (X)->bw)
-#define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
+#define WIDTH(X)                ((X)->w + 2 * totalborderpx)
+#define HEIGHT(X)               ((X)->h + 2 * totalborderpx + titlepx)
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X)                (textnw(X, strlen(X)) + dc.font.height)
 
@@ -106,6 +107,7 @@ typedef struct {
 	unsigned long infosel[ColLast];
 	unsigned long linecolor;
 	unsigned long urgbordercolor;
+	unsigned long urgfgcolor;
 	Drawable drawable;
 	GC gc;
 	struct {
@@ -280,6 +282,7 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static Client *prevclient = NULL;
 static const char broken[] = "broken";
 static char stext[256];
+static int titlepx;
 static int totalborderpx;
 static int gappx;
 static int screen;
@@ -369,9 +372,9 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
 			*x = sw - WIDTH(c);
 		if(*y > sh)
 			*y = sh - HEIGHT(c);
-		if(*x + *w + 2 * c->bw < 0)
+		if(*x + *w + (2 * totalborderpx) < 0)
 			*x = 0;
-		if(*y + *h + 2 * c->bw < 0)
+		if(*y + *h + (2 * totalborderpx + titlepx) < 0)
 			*y = 0;
 	}
 	else {
@@ -379,9 +382,9 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
 			*x = m->wx + m->ww - WIDTH(c);
 		if(*y >= m->wy + m->wh)
 			*y = m->wy + m->wh - HEIGHT(c);
-		if(*x + *w + 2 * c->bw <= m->wx)
+		if(*x + *w + (2 * totalborderpx) <= m->wx)
 			*x = m->wx;
-		if(*y + *h + 2 * c->bw <= m->wy)
+		if(*y + *h + (2 * totalborderpx + titlepx) <= m->wy)
 			*y = m->wy;
 	}
 	if(*h < bh)
@@ -686,8 +689,8 @@ createallbarriers(void) {
 			if(m->showbar) {
 				/* Top, bottom, left, right */
 				m->barrier[0] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, m->wy + totalborderpx + gappx,
-						m->wx + m->ww - 1, m->wy + totalborderpx + gappx,
+						m->wx, m->wy + totalborderpx + titlepx + gappx,
+						m->wx + m->ww - 1, m->wy + totalborderpx + titlepx + gappx,
 						BarrierPositiveY,
 						0, NULL);
 				m->barrier[1] = XFixesCreatePointerBarrier(dpy, root,
@@ -797,9 +800,12 @@ dirtomon(int dir) {
 void
 drawbar(Monitor *m) {
 	int x;
-	unsigned int i, occ = 0, urg = 0, n = 0, oldw;
+	unsigned int i, occ = 0, urg = 0;
 	unsigned long *col;
 	Client *c;
+
+	XSetForeground(dpy, dc.gc, dc.norm[ColBG]);
+	XFillRectangle(dpy, dc.drawable, dc.gc, 0, 0, m->ww, bh);
 
 	for(c = m->clients; c; c = c->next) {
 		occ |= c->tags;
@@ -830,53 +836,6 @@ drawbar(Monitor *m) {
 		dc.w = m->ww - x;
 	}
 	drawtext(stext, dc.info, False);
-
-	if((dc.w = dc.x - x) > bh) {
-		dc.x = x;
-
-		/* "Clear" task list */
-		drawtext(NULL, dc.norm, False);
-
-		/* Count clients on current tags */
-		for(c = m->clients; c; c = c->next) {
-			if(!ISVISIBLE(c))
-				continue;
-			n++;
-		}
-		oldw = dc.w;
-		if(n > 0)
-			dc.w /= n;
-		i = 0;
-
-		/* List visible clients with separators in between */
-		for(c = m->clients; c; c = c->next) {
-			if(!ISVISIBLE(c))
-				continue;
-			col = m == selmon && m->sel == c ? dc.sel : dc.norm;
-			if(i == n - 1)
-				dc.w = oldw - (n - 1) * dc.w;
-			drawtext(c->name, col, c->isurgent);
-			drawsquare(c->isfixed, c->isfloating, False, col);
-			if(i != n - 1) {
-				XSetForeground(dpy, dc.gc, dc.linecolor);
-				XDrawLine(dpy, dc.drawable, dc.gc,
-				          dc.x + dc.w - 1, dc.y,
-				          dc.x + dc.w - 1, bh);
-			}
-			dc.x += dc.w;
-			i++;
-		}
-
-		/* Draw first and last separator (outside of the actual tasklist) */
-		XSetForeground(dpy, dc.gc, dc.linecolor);
-		XDrawLine(dpy, dc.drawable, dc.gc,
-		          x - 1, dc.y,
-		          x - 1, bh);
-		XSetForeground(dpy, dc.gc, dc.linecolor);
-		XDrawLine(dpy, dc.drawable, dc.gc,
-		          x + oldw, dc.y,
-		          x + oldw, bh);
-	}
 
 	/* Draw border. */
 	XSetForeground(dpy, dc.gc, dc.linecolor);
@@ -934,6 +893,33 @@ drawtext(const char *text, unsigned long col[ColLast], Bool invert) {
 		XmbDrawString(dpy, dc.drawable, dc.font.set, dc.gc, x, y, buf, len);
 	else
 		XDrawString(dpy, dc.drawable, dc.gc, x, y, buf, len);
+}
+
+void
+drawtitletext(const char *text, unsigned long col, GC gc, Drawable d, int w) {
+	/* TODO refactor, this is mostly a copy of drawtext() */
+
+	char buf[512];
+	int i, x, y, h, len, olen;
+
+	if(!text)
+		return;
+	olen = strlen(text);
+	h = dc.font.ascent + dc.font.descent;
+	/* shorten text if necessary */
+	for(len = MIN(olen, sizeof buf); len && textnw(text, len) > w - h; len--);
+	if(!len)
+		return;
+	memcpy(buf, text, len);
+	if(len < olen)
+		for(i = len; i && i > len - 3; buf[--i] = '.');
+	x = titlepx + totalborderpx + beveltitle + (h / 2) + (w / 2) - TEXTW(text) / 2;
+	y = totalborderpx + beveltitle + ((dc.font.height + 2) / 2) - (h / 2) + dc.font.ascent;
+	XSetForeground(dpy, gc, col);
+	if(dc.font.set)
+		XmbDrawString(dpy, d, dc.font.set, gc, x, y, buf, len);
+	else
+		XDrawString(dpy, d, gc, x, y, buf, len);
 }
 
 void
@@ -1275,7 +1261,7 @@ manage(Window w, XWindowAttributes *wa) {
 	/* only fix client y-offset, if the client center might cover the bar */
 	c->y = MAX(c->y, ((c->mon->by == c->mon->my) && (c->x + (c->w / 2) >= c->mon->wx)
 	           && (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
-	c->bw = totalborderpx;
+	c->bw = totalborderpx + titlepx;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
@@ -1368,10 +1354,10 @@ monocle(Monitor *m) {
 		snprintf(m->ltsymbol, sizeof m->ltsymbol, "[%d]", n);
 	for(c = nexttiled(m->clients); c; c = nexttiled(c->next))
 		resize(c,
-		       m->wx + gappx,
+		       m->wx + gappx - titlepx,
 		       m->wy + gappx,
-		       m->ww - (2*c->bw) - (2*gappx),
-		       m->wh - (2*c->bw) - (2*gappx),
+		       m->ww - (2*totalborderpx) - (2*gappx),
+		       m->wh - (2*totalborderpx + titlepx) - (2*gappx),
 		       False);
 }
 
@@ -1553,8 +1539,7 @@ propertynotify(XEvent *e) {
 		}
 		if(ev->atom == XA_WM_NAME || ev->atom == netatom[NetWMName]) {
 			updatetitle(c);
-			if(c == c->mon->sel)
-				drawbar(c->mon);
+			setborder(c, StateAuto);
 		}
 		if(ev->atom == netatom[NetWMWindowType])
 			updatewindowtype(c);
@@ -1617,7 +1602,8 @@ resizemouse(const Arg *arg) {
 	if(XGrabPointer(dpy, root, False, MOUSEMASK, GrabModeAsync, GrabModeAsync,
 	                None, cursor[CurResize], CurrentTime) != GrabSuccess)
 		return;
-	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + c->bw - 1, c->h + c->bw - 1);
+	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + totalborderpx - 1,
+	             c->h + totalborderpx - 1);
 	do {
 		XMaskEvent(dpy, MOUSEMASK|ExposureMask|SubstructureRedirectMask, &ev);
 		switch(ev.type) {
@@ -1627,8 +1613,8 @@ resizemouse(const Arg *arg) {
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			nw = MAX(ev.xmotion.x - ocx - 2 * c->bw + 1, 1);
-			nh = MAX(ev.xmotion.y - ocy - 2 * c->bw + 1, 1);
+			nw = MAX(ev.xmotion.x - ocx - 2 * totalborderpx - titlepx + 1, 1);
+			nh = MAX(ev.xmotion.y - ocy - 2 * totalborderpx - titlepx + 1, 1);
 			if(c->mon->wx + nw >= selmon->wx && c->mon->wx + nw <= selmon->wx + selmon->ww
 			&& c->mon->wy + nh >= selmon->wy && c->mon->wy + nh <= selmon->wy + selmon->wh)
 			{
@@ -1641,7 +1627,8 @@ resizemouse(const Arg *arg) {
 			break;
 		}
 	} while(ev.type != ButtonRelease);
-	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + c->bw - 1, c->h + c->bw - 1);
+	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + totalborderpx - 1,
+	             c->h + totalborderpx - 1);
 	XUngrabPointer(dpy, CurrentTime);
 	while(XCheckMaskEvent(dpy, EnterWindowMask, &ev));
 	if((m = recttomon(c->x, c->y, c->w, c->h)) != selmon) {
@@ -1742,6 +1729,9 @@ setborder(Client *c, enum BorderType state) {
 	XSegment cuts[8];
 	size_t segsi, bordersi;
 
+	if(c->bw <= 0)
+		return;
+
 	if(state == StateAuto) {
 		state = (c->isurgent ? StateUrgent :
 		                       (c->mon == selmon && c->mon->sel == c ? StateFocused :
@@ -1757,6 +1747,10 @@ setborder(Client *c, enum BorderType state) {
 	shifted = XCreatePixmap(dpy, root, c->w + 2*c->bw, c->h + 2*c->bw,
 	                        DefaultDepth(dpy, screen));
 
+	/* This only shows up if the SHAPE extension is not available. */
+	XSetForeground(dpy, gc, 0);
+	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
+
 	/* Draw unshifted */
 	switch(state) {
 		case StateNormal: colbase = dc.norm[ColBorder]; break;
@@ -1770,7 +1764,8 @@ setborder(Client *c, enum BorderType state) {
 	colinner = multiplycolor(colbase, bevelfacts[2]);
 
 	XSetForeground(dpy, gc, colmiddle);
-	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
+	XFillRectangle(dpy, unshifted, gc, titlepx, 0, c->w + 2*totalborderpx,
+	               c->h + 2*totalborderpx + titlepx);
 
 	for(io = 0; io <= 1; io++) {
 		bordersi = (io == 0 ? 0 : 2);
@@ -1783,16 +1778,16 @@ setborder(Client *c, enum BorderType state) {
 			XSetForeground(dpy, gc, (io == 0 ? colouter : colinner));
 			for(i = 0, segsi = 0; i < borders[bordersi]; i++, segsi++) {
 				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = j;
+				segs[segsi].x1 = j + titlepx;
 				segs[segsi].y1 = j;
-				segs[segsi].x2 = j;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+				segs[segsi].x2 = j + titlepx;
+				segs[segsi].y2 = c->h + 2*c->bw - j - 1 - titlepx;
 			}
 			for(i = 0; i < borders[bordersi]; i++, segsi++) {
 				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = j;
+				segs[segsi].x1 = j + titlepx;
 				segs[segsi].y1 = j;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
+				segs[segsi].x2 = c->w + 2*c->bw - j - 1 - titlepx;
 				segs[segsi].y2 = j;
 			}
 			XDrawSegments(dpy, unshifted, gc, segs, 2*borders[bordersi]);
@@ -1801,17 +1796,17 @@ setborder(Client *c, enum BorderType state) {
 			XSetForeground(dpy, gc, (io == 0 ? colinner : colouter));
 			for(i = 0, segsi = 0; i < borders[bordersi]; i++, segsi++) {
 				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = j + 1;
-				segs[segsi].y1 = c->h + 2*c->bw - j - 1;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+				segs[segsi].x1 = j + 1 + titlepx;
+				segs[segsi].y1 = c->h + 2*c->bw - j - 1 - titlepx;
+				segs[segsi].x2 = c->w + 2*c->bw - j - 1 - titlepx;
+				segs[segsi].y2 = c->h + 2*c->bw - j - 1 - titlepx;
 			}
 			for(i = 0; i < borders[bordersi]; i++, segsi++) {
 				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = c->w + 2*c->bw - j - 1;
+				segs[segsi].x1 = c->w + 2*c->bw - j - 1 - titlepx;
 				segs[segsi].y1 = j + 1;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1;
+				segs[segsi].x2 = c->w + 2*c->bw - j - 1 - titlepx;
+				segs[segsi].y2 = c->h + 2*c->bw - j - 1 - titlepx;
 			}
 			XDrawSegments(dpy, unshifted, gc, segs, 2*borders[bordersi]);
 
@@ -1822,11 +1817,11 @@ setborder(Client *c, enum BorderType state) {
 	if((borders[0] > 0 || borders[2] > 0) &&
 	   (c->w > 4*(c->bw + 1) && c->h > 4*(c->bw + 1))) {
 		/* Top left, top right, bottom left, bottom right. */
-		cuts[0].x1 = cuts[0].x2 = 3*c->bw;
+		cuts[0].x1 = cuts[0].x2 = 2*titlepx + totalborderpx;
 		cuts[0].y1 = MAX(MIN(1, borders[0] - 1), 0);
-		cuts[0].y2 = MAX(c->bw - 2, borders[0] + borders[1] - 1);
+		cuts[0].y2 = MAX(totalborderpx - 2, borders[0] + borders[1] - 1);
 
-		cuts[1].x1 = cuts[1].x2 = c->w - c->bw;
+		cuts[1].x1 = cuts[1].x2 = c->w + totalborderpx;
 		cuts[1].y1 = cuts[0].y1;
 		cuts[1].y2 = cuts[0].y2;
 
@@ -1841,22 +1836,22 @@ setborder(Client *c, enum BorderType state) {
 		cuts[3].y2 = cuts[1].y2 + c->h + c->bw;
 
 		/* Left top, left bottom, right top, right bottom. */
-		cuts[4].x1 = cuts[0].y1;
-		cuts[4].y1 = cuts[0].x1;
-		cuts[4].x2 = cuts[0].y2;
-		cuts[4].y2 = cuts[0].x2;
+		cuts[4].x1 = cuts[0].y1 + titlepx;
+		cuts[4].y1 = cuts[0].x1 - titlepx;
+		cuts[4].x2 = cuts[0].y2 + titlepx;
+		cuts[4].y2 = cuts[0].x2 - titlepx;
 
 		cuts[5].x1 = cuts[4].x1;
 		cuts[5].x2 = cuts[4].x2;
-		cuts[5].y1 = cuts[5].y2 = c->h - c->bw;
+		cuts[5].y1 = cuts[5].y2 = c->h + totalborderpx;
 
-		cuts[6].x1 = cuts[4].x1 + c->w + c->bw;
-		cuts[6].x2 = cuts[4].x2 + c->w + c->bw;
+		cuts[6].x1 = cuts[4].x1 + c->w + totalborderpx;
+		cuts[6].x2 = cuts[4].x2 + c->w + totalborderpx;
 		cuts[6].y1 = cuts[4].y1;
 		cuts[6].y2 = cuts[4].y2;
 
-		cuts[7].x1 = cuts[5].x1 + c->w + c->bw;
-		cuts[7].x2 = cuts[5].x2 + c->w + c->bw;
+		cuts[7].x1 = cuts[5].x1 + c->w + totalborderpx;
+		cuts[7].x2 = cuts[5].x2 + c->w + totalborderpx;
 		cuts[7].y1 = cuts[5].y1;
 		cuts[7].y2 = cuts[5].y2;
 
@@ -1876,6 +1871,55 @@ setborder(Client *c, enum BorderType state) {
 		XSetForeground(dpy, gc, colinner);
 		XDrawSegments(dpy, unshifted, gc, cuts, 8);
 	}
+
+	/* Draw titlebar */
+	if(beveltitle > 0) {
+		segs = calloc(sizeof(XSegment), 2*beveltitle);
+		if(!segs)
+			die("fatal: could not malloc() for pixmap title\n");
+
+		/* left and top */
+		XSetForeground(dpy, gc, colouter);
+		for(i = 0, segsi = 0; i < beveltitle; i++, segsi++) {
+			segs[segsi].x1 = titlepx + totalborderpx + i;
+			segs[segsi].y1 = totalborderpx + i;
+			segs[segsi].x2 = titlepx + totalborderpx + i;
+			segs[segsi].y2 = totalborderpx + titlepx - i - 1;
+		}
+		for(i = 0; i < beveltitle; i++, segsi++) {
+			segs[segsi].x1 = titlepx + totalborderpx + i;
+			segs[segsi].y1 = totalborderpx + i;
+			segs[segsi].x2 = totalborderpx + titlepx + c->w - i - 1;
+			segs[segsi].y2 = totalborderpx + i;
+		}
+		XDrawSegments(dpy, unshifted, gc, segs, 2*beveltitle);
+
+		/* bottom and right */
+		XSetForeground(dpy, gc, colinner);
+		for(i = 0, segsi = 0; i < beveltitle; i++, segsi++) {
+			segs[segsi].x1 = titlepx + totalborderpx + i;
+			segs[segsi].y1 = titlepx + totalborderpx - i - 1;
+			segs[segsi].x2 = totalborderpx + titlepx + c->w - i - 1;
+			segs[segsi].y2 = titlepx + totalborderpx - i - 1;
+		}
+		for(i = 0; i < beveltitle; i++, segsi++) {
+			segs[segsi].x1 = c->w + titlepx + totalborderpx - i - 1;
+			segs[segsi].y1 = totalborderpx + i;
+			segs[segsi].x2 = c->w + titlepx + totalborderpx - i - 1;
+			segs[segsi].y2 = totalborderpx + titlepx - i - 1;
+		}
+		XDrawSegments(dpy, unshifted, gc, segs, 2*beveltitle);
+
+		free(segs);
+	}
+
+	switch(state) {
+		case StateNormal: colbase = dc.norm[ColFG]; break;
+		case StateFocused: colbase = dc.sel[ColFG]; break;
+		case StateUrgent: colbase = dc.urgfgcolor; break;
+		case StateAuto: /* silence compiler warning */ break;
+	}
+	drawtitletext(c->name, colbase, gc, unshifted, c->w);
 
 	/* Shift
 	 *
@@ -1938,6 +1982,15 @@ setborder(Client *c, enum BorderType state) {
 	XFreePixmap(dpy, shifted);
 	XFreePixmap(dpy, unshifted);
 	XFreeGC(dpy, gc);
+
+	/* TODO maybe move this to resizeclient() */
+	XRectangle r;
+	r.x = -totalborderpx;
+	r.y = -(totalborderpx + titlepx);
+	r.width = c->w + 2*totalborderpx;
+	r.height = c->h + 2*totalborderpx + titlepx;
+	XShapeCombineRectangles(dpy, c->win, ShapeBounding, 0, 0,
+	                        &r, 1, ShapeSet, Unsorted);
 }
 
 void
@@ -2073,6 +2126,8 @@ setup(void) {
 	sw = DisplayWidth(dpy, screen);
 	sh = DisplayHeight(dpy, screen);
 	bh = dc.h = dc.font.height + 3;
+	/* TODO query shape extension */
+	titlepx = dc.font.height + 2 + 2*beveltitle;
 	if(!XQueryExtension(dpy, "XFIXES", &fixes_opcode, &fixes_event_base,
 		&fixes_error_base)) {
 		fprintf(stderr, "dwm: No XFIXES extension available,"
@@ -2110,6 +2165,7 @@ setup(void) {
 	dc.infosel[ColFG] = getcolor(infoselfgcolor);
 	dc.linecolor = getcolor(linecolor);
 	dc.urgbordercolor = getcolor(urgbordercolor);
+	dc.urgfgcolor = getcolor(urgfgcolor);
 	dc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
 	dc.gc = XCreateGC(dpy, root, 0, NULL);
 	XSetLineAttributes(dpy, dc.gc, 1, LineSolid, CapButt, JoinMiter);
@@ -2212,10 +2268,10 @@ slinp(Monitor *m) {
 				xoffrel = thisslot / (float)slots;
 
 				resize(c,
-				       m->wx + xoffrel * m->ww,
+				       m->wx + xoffrel * m->ww - titlepx,
 				       m->wy,
-				       1.0 / slots * m->ww - 2 * c->bw,
-				       selmon->mfact * m->wh - 2 * c->bw,
+				       1.0 / slots * m->ww - 2 * totalborderpx,
+				       selmon->mfact * m->wh - 2 * totalborderpx - titlepx,
 				       False);
 			}
 		}
@@ -2238,10 +2294,10 @@ slinp(Monitor *m) {
 		if(strcmp(class, "Showpdf") != 0)
 		{
 			resize(c,
-			       m->wx + (i / (float)slaves) * m->ww,
+			       m->wx + (i / (float)slaves) * m->ww - titlepx,
 			       m->wy + selmon->mfact * m->wh,
-			       1.0 / slaves * m->ww - 2 * c->bw,
-			       m->wh - selmon->mfact * m->wh - 2 * c->bw,
+			       1.0 / slaves * m->ww - 2 * totalborderpx,
+			       m->wh - selmon->mfact * m->wh - 2 * totalborderpx - titlepx,
 			       False);
 			i++;
 		}
@@ -2341,20 +2397,20 @@ tile(Monitor *m) {
 		if(i < actual_nmaster) {
 			h = (m->wh - my) / (MIN(n, actual_nmaster) - i);
 			resize(c,
-			       m->wx + gappx,
+			       m->wx + gappx - titlepx,
 			       m->wy + my + gappx,
-			       mw - (2*c->bw) - (2*gappx),
-			       h - (2*c->bw) - (2*gappx),
+			       mw - (2*totalborderpx) - (2*gappx),
+			       h - (2*totalborderpx + titlepx) - (2*gappx),
 			       False);
 			my += HEIGHT(c) + (2*gappx);
 		}
 		else {
 			h = (m->wh - ty) / (n - i);
 			resize(c,
-			       m->wx + mw + gappx,
+			       m->wx + mw + gappx - titlepx,
 			       m->wy + ty + gappx,
-			       m->ww - mw - (2*c->bw) - (2*gappx),
-			       h - (2*c->bw) - (2*gappx),
+			       m->ww - mw - (2*totalborderpx) - (2*gappx),
+			       h - (2*totalborderpx + titlepx) - (2*gappx),
 			       False);
 			ty += HEIGHT(c) + (2*gappx);
 		}
