@@ -19,6 +19,7 @@ static const char urgfgcolor[]       = "#000000";
 static const unsigned int borders[]  = { 2, 3, 2 };  /* outer, middle, inner border */
 static const double bevelfacts[]     = { 1.25, 1.0, 0.5 }; /* multiply outer/middle/inner bordercolor with x */
 static const unsigned int beveltitle = 2;        /* bevel size of title area */
+static const Bool centertitle        = False;
 static const unsigned int snap       = 32;       /* snap pixel */
 static const int uselessgap          = 5;        /* useless gap */
 static const Bool showbar            = True;     /* False means no bar */

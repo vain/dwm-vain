@@ -914,7 +914,7 @@ drawtitletext(const char *text, unsigned long col, GC gc, Drawable d, int w) {
 	if(len < olen)
 		for(i = len; i && i > len - 3; buf[--i] = '.');
 	x = titlepx + totalborderpx + beveltitle + (h / 2)
-	    + ((w - h) / 2) - textnw(text, len, &dc.fonttitle) / 2;
+	    + (centertitle ? ((w - h) / 2) - textnw(text, len, &dc.fonttitle) / 2 : 0);
 	y = totalborderpx + beveltitle + ((dc.fonttitle.height + 2) / 2) - (h / 2) +
 	    dc.fonttitle.ascent;
 	XSetForeground(dpy, gc, col);
