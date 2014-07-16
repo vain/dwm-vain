@@ -488,7 +488,7 @@ centerfloater(const Arg *arg) {
 		return;
 	resize(selmon->sel,
 			selmon->wx + 0.5 * (selmon->ww - selmon->sel->w - 2*selmon->sel->bw),
-			selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*selmon->sel->bw),
+			selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*selmon->sel->bw + titlepx),
 			selmon->sel->w, selmon->sel->h,
 			False);
 }
@@ -1320,10 +1320,10 @@ maximizefloater(const Arg *arg) {
 	   !(selmon->sel->isfloating || !selmon->lt->arrange))
 		return;
 	resize(selmon->sel,
-	       selmon->wx + gappx,
+	       selmon->wx + gappx - titlepx,
 	       selmon->wy + gappx,
-	       selmon->ww - (2*selmon->sel->bw) - (2*gappx),
-	       selmon->wh - (2*selmon->sel->bw) - (2*gappx),
+	       selmon->ww - (2*totalborderpx) - (2*gappx),
+	       selmon->wh - (2*totalborderpx + titlepx) - (2*gappx),
 	       False);
 }
 
