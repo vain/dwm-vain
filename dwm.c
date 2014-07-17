@@ -240,6 +240,7 @@ static void setfocus(Client *c);
 static void setfullscreen(Client *c, Bool fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
+static void setshape(Client *c);
 static void setup(void);
 static void shiftmask(unsigned int *m, int dir);
 static void shiftview(const Arg *arg);
@@ -597,6 +598,7 @@ configure(Client *c) {
 	ce.override_redirect = False;
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
 	setborder(c, StateAuto);
+	setshape(c);
 }
 
 void
@@ -650,10 +652,12 @@ configurerequest(XEvent *e) {
 			if(ev->value_mask & CWWidth) {
 				c->oldw = c->w;
 				c->w = ev->width;
+				setshape(c);
 			}
 			if(ev->value_mask & CWHeight) {
 				c->oldh = c->h;
 				c->h = ev->height;
+				setshape(c);
 			}
 			if((c->x + c->w) > m->mx + m->mw && c->isfloating)
 				c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2); /* center in x direction */
@@ -1984,15 +1988,6 @@ setborder(Client *c, enum BorderType state) {
 	XFreePixmap(dpy, shifted);
 	XFreePixmap(dpy, unshifted);
 	XFreeGC(dpy, gc);
-
-	/* TODO maybe move this to resizeclient() */
-	XRectangle r;
-	r.x = -totalborderpx;
-	r.y = -(totalborderpx + titlepx);
-	r.width = c->w + 2*totalborderpx;
-	r.height = c->h + 2*totalborderpx + titlepx;
-	XShapeCombineRectangles(dpy, c->win, ShapeBounding, 0, 0,
-	                        &r, 1, ShapeSet, Unsorted);
 }
 
 void
@@ -2106,6 +2101,18 @@ setmfact(const Arg *arg) {
 		return;
 	selmon->mfact = f;
 	arrange(selmon);
+}
+
+void
+setshape(Client *c) {
+	XRectangle r;
+
+	r.x = -totalborderpx;
+	r.y = -(totalborderpx + titlepx);
+	r.width = c->w + 2*totalborderpx;
+	r.height = c->h + 2*totalborderpx + titlepx;
+	XShapeCombineRectangles(dpy, c->win, ShapeBounding, 0, 0,
+	                        &r, 1, ShapeSet, Unsorted);
 }
 
 void
