@@ -1885,7 +1885,7 @@ setborder(Client *c, enum BorderType state) {
 			die("fatal: could not malloc() for pixmap title\n");
 
 		/* left and top */
-		XSetForeground(dpy, gc, c->isfloating ? colinner : colouter);
+		XSetForeground(dpy, gc, colouter);
 		for(i = 0, segsi = 0; i < beveltitle; i++, segsi++) {
 			segs[segsi].x1 = titlepx + totalborderpx + i;
 			segs[segsi].y1 = totalborderpx + i;
@@ -1901,7 +1901,7 @@ setborder(Client *c, enum BorderType state) {
 		XDrawSegments(dpy, unshifted, gc, segs, 2*beveltitle);
 
 		/* bottom and right */
-		XSetForeground(dpy, gc, c->isfloating ? colouter : colinner);
+		XSetForeground(dpy, gc, colinner);
 		for(i = 0, segsi = 0; i < beveltitle; i++, segsi++) {
 			segs[segsi].x1 = titlepx + totalborderpx + i;
 			segs[segsi].y1 = titlepx + totalborderpx - i - 1;
