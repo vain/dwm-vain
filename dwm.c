@@ -2143,13 +2143,15 @@ setup(void) {
 	sw = DisplayWidth(dpy, screen);
 	sh = DisplayHeight(dpy, screen);
 	bh = dc.h = dc.font.height + 3;
-	/* TODO query shape extension */
 	titlepx = dc.fonttitle.height + 2 + 2*beveltitle;
 	if(!XQueryExtension(dpy, "XFIXES", &fixes_opcode, &fixes_event_base,
 		&fixes_error_base)) {
 		fprintf(stderr, "dwm: No XFIXES extension available,"
 		                "disabling pointer barriers.\n");
 		screenbarriers = False;
+	}
+	if(!XShapeQueryExtension(dpy, &fixes_opcode, &fixes_event_base)) {
+		fprintf(stderr, "dwm: No SHAPE extension available, I'll look crappy.\n");
 	}
 	updategeom();
 	/* init atoms */
