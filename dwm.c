@@ -1927,6 +1927,13 @@ setborder(Client *c, enum BorderType state) {
 	}
 	drawtitletext(c->name, colbase, gc, unshifted, c->w - 2*beveltitle);
 
+	if(c->isfloating) {
+		i = (dc.font.ascent + dc.font.descent + 2) / 4;
+		XDrawRectangle(dpy, unshifted, gc,
+		               titlepx + totalborderpx + beveltitle + 1,
+		               totalborderpx + beveltitle + 1, i, i);
+	}
+
 	/* Shift
 	 *
 	 * This is what we have drawn above:
