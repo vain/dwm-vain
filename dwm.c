@@ -58,7 +58,7 @@
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast };        /* cursor */
-enum { ColBorder, ColFG, ColBG, ColLast };              /* color */
+enum { ColFG, ColBG, ColLast };                         /* color */
 enum { NetSupported, NetWMName, NetWMState,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
        NetWMWindowTypeDialog, NetClientList, NetLast };     /* EWMH atoms */
@@ -103,11 +103,11 @@ typedef struct {
 	int x, y, w, h;
 	unsigned long norm[ColLast];
 	unsigned long sel[ColLast];
-	unsigned long info[ColLast];
+	unsigned long urg[ColLast];
+	unsigned long infonorm[ColLast];
 	unsigned long infosel[ColLast];
 	unsigned long linecolor;
-	unsigned long urgbordercolor;
-	unsigned long urgfgcolor;
+	unsigned long baremptycolor;
 	Drawable drawable;
 	GC gc;
 	struct FontInfo {
@@ -808,7 +808,7 @@ drawbar(Monitor *m) {
 	unsigned long *col;
 	Client *c;
 
-	XSetForeground(dpy, dc.gc, dc.norm[ColBG]);
+	XSetForeground(dpy, dc.gc, dc.baremptycolor);
 	XFillRectangle(dpy, dc.drawable, dc.gc, 0, 0, m->ww, bh);
 
 	for(c = m->clients; c; c = c->next) {
@@ -822,14 +822,14 @@ drawbar(Monitor *m) {
 		if (!((occ | m->tagset[m->seltags]) & 1 << i))
 			continue;
 		dc.w = TEXTW(tags[i]);
-		col = m->tagset[m->seltags] & 1 << i ? dc.infosel : dc.info;
+		col = m->tagset[m->seltags] & 1 << i ? dc.infosel : dc.infonorm;
 		drawtext(tags[i], col, urg & 1 << i);
 		drawsquare(m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
 		           occ & 1 << i, urg & 1 << i, col);
 		dc.x += dc.w;
 	}
 	dc.w = blw = TEXTW(m->ltsymbol);
-	drawtext(m->ltsymbol, dc.info, False);
+	drawtext(m->ltsymbol, dc.infonorm, False);
 	dc.x += dc.w;
 	x = dc.x;
 
@@ -839,7 +839,7 @@ drawbar(Monitor *m) {
 		dc.x = x;
 		dc.w = m->ww - x;
 	}
-	drawtext(stext, dc.info, False);
+	drawtext(stext, dc.infonorm, False);
 
 	/* Draw border. */
 	XSetForeground(dpy, dc.gc, dc.linecolor);
@@ -1271,7 +1271,7 @@ manage(Window w, XWindowAttributes *wa) {
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
-	XSetWindowBorder(dpy, w, dc.norm[ColBorder]);
+	XSetWindowBorder(dpy, w, dc.norm[ColBG]);
 	configure(c); /* propagates border_width, if size doesn't change */
 	updatewindowtype(c);
 	updatesizehints(c);
@@ -1759,9 +1759,9 @@ setborder(Client *c, enum BorderType state) {
 
 	/* Draw unshifted */
 	switch(state) {
-		case StateNormal: colbase = dc.norm[ColBorder]; break;
-		case StateFocused: colbase = dc.sel[ColBorder]; break;
-		case StateUrgent: colbase = dc.urgbordercolor; break;
+		case StateNormal: colbase = dc.norm[ColBG]; break;
+		case StateFocused: colbase = dc.sel[ColBG]; break;
+		case StateUrgent: colbase = dc.urg[ColBG]; break;
 		case StateAuto: /* silence compiler warning */ break;
 	}
 
@@ -1922,7 +1922,7 @@ setborder(Client *c, enum BorderType state) {
 	switch(state) {
 		case StateNormal: colbase = dc.norm[ColFG]; break;
 		case StateFocused: colbase = dc.sel[ColFG]; break;
-		case StateUrgent: colbase = dc.urgfgcolor; break;
+		case StateUrgent: colbase = dc.urg[ColFG]; break;
 		case StateAuto: /* silence compiler warning */ break;
 	}
 	drawtitletext(c->name, colbase, gc, unshifted, c->w - 2*beveltitle);
@@ -2171,19 +2171,18 @@ setup(void) {
 	cursor[CurResize] = XCreateFontCursor(dpy, XC_sizing);
 	cursor[CurMove] = XCreateFontCursor(dpy, XC_fleur);
 	/* init appearance */
-	dc.norm[ColBorder] = getcolor(normbordercolor);
 	dc.norm[ColBG] = getcolor(normbgcolor);
 	dc.norm[ColFG] = getcolor(normfgcolor);
-	dc.sel[ColBorder] = getcolor(selbordercolor);
 	dc.sel[ColBG] = getcolor(selbgcolor);
 	dc.sel[ColFG] = getcolor(selfgcolor);
-	dc.info[ColBG] = getcolor(infobgcolor);
-	dc.info[ColFG] = getcolor(infofgcolor);
+	dc.urg[ColBG] = getcolor(urgbgcolor);
+	dc.urg[ColFG] = getcolor(urgfgcolor);
+	dc.infonorm[ColBG] = getcolor(infonormbgcolor);
+	dc.infonorm[ColFG] = getcolor(infonormfgcolor);
 	dc.infosel[ColBG] = getcolor(infoselbgcolor);
 	dc.infosel[ColFG] = getcolor(infoselfgcolor);
 	dc.linecolor = getcolor(linecolor);
-	dc.urgbordercolor = getcolor(urgbordercolor);
-	dc.urgfgcolor = getcolor(urgfgcolor);
+	dc.baremptycolor = getcolor(baremptycolor);
 	dc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
 	dc.gc = XCreateGC(dpy, root, 0, NULL);
 	XSetLineAttributes(dpy, dc.gc, 1, LineSolid, CapButt, JoinMiter);
