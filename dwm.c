@@ -2125,7 +2125,7 @@ setshape(Client *c) {
 void
 setup(void) {
 	XSetWindowAttributes wa;
-	int fixes_opcode, fixes_event_base, fixes_error_base;
+	int dummy1, dummy2, dummy3;
 
 	/* clean up any zombies immediately */
 	sigchld(0);
@@ -2144,13 +2144,12 @@ setup(void) {
 	sh = DisplayHeight(dpy, screen);
 	bh = dc.h = dc.font.height + 3;
 	titlepx = dc.fonttitle.height + 2 + 2*beveltitle;
-	if(!XQueryExtension(dpy, "XFIXES", &fixes_opcode, &fixes_event_base,
-		&fixes_error_base)) {
+	if(!XQueryExtension(dpy, "XFIXES", &dummy1, &dummy2, &dummy3)) {
 		fprintf(stderr, "dwm: No XFIXES extension available,"
 		                "disabling pointer barriers.\n");
 		screenbarriers = False;
 	}
-	if(!XShapeQueryExtension(dpy, &fixes_opcode, &fixes_event_base)) {
+	if(!XShapeQueryExtension(dpy, &dummy1, &dummy2)) {
 		fprintf(stderr, "dwm: No SHAPE extension available, I'll look crappy.\n");
 	}
 	updategeom();
