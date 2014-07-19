@@ -100,6 +100,11 @@ struct Client {
 };
 
 typedef struct {
+	Drawable drawable;
+	GC gc;
+} BarContext;
+
+typedef struct {
 	unsigned long norm[ColLast];
 	unsigned long sel[ColLast];
 	unsigned long urg[ColLast];
@@ -119,9 +124,9 @@ typedef struct {
 
 typedef struct {
 	int x, y, w, h;
-	Drawable drawable;
+	Drawable *drawable;
 	FontInfo *fi;
-	GC gc;
+	GC *gc;
 } DC; /* draw context */
 
 typedef struct {
@@ -315,6 +320,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[UnmapNotify] = unmapnotify
 };
 static Atom wmatom[WMLast], netatom[NetLast];
+static BarContext bc;
 static Bool running = True;
 static Bool dorestart = False;
 static ColorInfo ci;
@@ -542,8 +548,8 @@ cleanup(void) {
 	cleanupfont(&fibar);
 	cleanupfont(&fititle);
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
-	XFreePixmap(dpy, dc.drawable);
-	XFreeGC(dpy, dc.gc);
+	XFreePixmap(dpy, bc.drawable);
+	XFreeGC(dpy, bc.gc);
 	XFreeCursor(dpy, cursor[CurNormal]);
 	XFreeCursor(dpy, cursor[CurResize]);
 	XFreeCursor(dpy, cursor[CurMove]);
@@ -628,9 +634,9 @@ configurenotify(XEvent *e) {
 		sw = ev->width;
 		sh = ev->height;
 		if(updategeom() || dirty) {
-			if(dc.drawable != 0)
-				XFreePixmap(dpy, dc.drawable);
-			dc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
+			if(bc.drawable != 0)
+				XFreePixmap(dpy, bc.drawable);
+			bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
 			updatebars();
 			for(m = mons; m; m = m->next)
 				XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
@@ -822,8 +828,13 @@ drawbar(Monitor *m) {
 	unsigned long *col;
 	Client *c;
 
-	XSetForeground(dpy, dc.gc, ci.baremptycolor);
-	XFillRectangle(dpy, dc.drawable, dc.gc, 0, 0, m->ww, bh);
+	dc.h = bh;
+	dc.fi = &fibar;
+	dc.gc = &bc.gc;
+	dc.drawable = &bc.drawable;
+
+	XSetForeground(dpy, *dc.gc, ci.baremptycolor);
+	XFillRectangle(dpy, *dc.drawable, *dc.gc, 0, 0, m->ww, bh);
 
 	for(c = m->clients; c; c = c->next) {
 		occ |= c->tags;
@@ -832,8 +843,6 @@ drawbar(Monitor *m) {
 	}
 	dc.x = 0;
 	dc.y = m->topbar ? 0 : 1;
-	dc.h = bh;
-	dc.fi = &fibar;
 	for(i = 0; i < LENGTH(tags); i++) {
 		if (!((occ | m->tagset[m->seltags]) & 1 << i))
 			continue;
@@ -858,13 +867,13 @@ drawbar(Monitor *m) {
 	drawtext(stext, ci.infonorm, False);
 
 	/* Draw border. */
-	XSetForeground(dpy, dc.gc, ci.linecolor);
+	XSetForeground(dpy, *dc.gc, ci.linecolor);
 	if (topbar)
-		XDrawLine(dpy, dc.drawable, dc.gc, 0, bh - 1, m->ww, bh - 1);
+		XDrawLine(dpy, *dc.drawable, *dc.gc, 0, bh - 1, m->ww, bh - 1);
 	else
-		XDrawLine(dpy, dc.drawable, dc.gc, 0, 0, m->ww, 0);
+		XDrawLine(dpy, *dc.drawable, *dc.gc, 0, 0, m->ww, 0);
 
-	XCopyArea(dpy, dc.drawable, m->barwin, dc.gc, 0, 0, m->ww, bh, 0, 0);
+	XCopyArea(dpy, *dc.drawable, m->barwin, *dc.gc, 0, 0, m->ww, bh, 0, 0);
 	XSync(dpy, False);
 }
 
@@ -880,12 +889,12 @@ void
 drawsquare(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]) {
 	int x;
 
-	XSetForeground(dpy, dc.gc, col[invert ? ColBG : ColFG]);
+	XSetForeground(dpy, *dc.gc, col[invert ? ColBG : ColFG]);
 	x = (dc.fi->ascent + dc.fi->descent + 2) / 4;
 	if(filled)
-		XFillRectangle(dpy, dc.drawable, dc.gc, dc.x+1, dc.y+1, x+1, x+1);
+		XFillRectangle(dpy, *dc.drawable, *dc.gc, dc.x+1, dc.y+1, x+1, x+1);
 	else if(empty)
-		XDrawRectangle(dpy, dc.drawable, dc.gc, dc.x+1, dc.y+1, x, x);
+		XDrawRectangle(dpy, *dc.drawable, *dc.gc, dc.x+1, dc.y+1, x, x);
 }
 
 void
@@ -893,8 +902,8 @@ drawtext(const char *text, unsigned long col[ColLast], Bool invert) {
 	char buf[256];
 	int i, x, y, h, len, olen;
 
-	XSetForeground(dpy, dc.gc, col[invert ? ColFG : ColBG]);
-	XFillRectangle(dpy, dc.drawable, dc.gc, dc.x, dc.y, dc.w, dc.h);
+	XSetForeground(dpy, *dc.gc, col[invert ? ColFG : ColBG]);
+	XFillRectangle(dpy, *dc.drawable, *dc.gc, dc.x, dc.y, dc.w, dc.h);
 	if(!text)
 		return;
 	olen = strlen(text);
@@ -908,11 +917,11 @@ drawtext(const char *text, unsigned long col[ColLast], Bool invert) {
 	memcpy(buf, text, len);
 	if(len < olen)
 		for(i = len; i && i > len - 3; buf[--i] = '.');
-	XSetForeground(dpy, dc.gc, col[invert ? ColBG : ColFG]);
+	XSetForeground(dpy, *dc.gc, col[invert ? ColBG : ColFG]);
 	if(dc.fi->set)
-		XmbDrawString(dpy, dc.drawable, dc.fi->set, dc.gc, x, y, buf, len);
+		XmbDrawString(dpy, *dc.drawable, dc.fi->set, *dc.gc, x, y, buf, len);
 	else
-		XDrawString(dpy, dc.drawable, dc.gc, x, y, buf, len);
+		XDrawString(dpy, *dc.drawable, *dc.gc, x, y, buf, len);
 }
 
 void
@@ -1768,6 +1777,8 @@ setborder(Client *c, enum BorderType state) {
 	                          DefaultDepth(dpy, screen));
 	shifted = XCreatePixmap(dpy, root, c->w + 2*c->bw, c->h + 2*c->bw,
 	                        DefaultDepth(dpy, screen));
+	if(!fititle.set)
+		XSetFont(dpy, gc, fititle.xfont->fid);
 
 	/* This only shows up if the SHAPE extension is not available. */
 	XSetForeground(dpy, gc, 0);
@@ -2200,12 +2211,11 @@ setup(void) {
 	ci.infosel[ColFG] = getcolor(infoselfgcolor);
 	ci.linecolor = getcolor(linecolor);
 	ci.baremptycolor = getcolor(baremptycolor);
-	dc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
-	dc.gc = XCreateGC(dpy, root, 0, NULL);
-	XSetLineAttributes(dpy, dc.gc, 1, LineSolid, CapButt, JoinMiter);
-	/* Applies to fallback for the bar and title bars. */
+	bc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
+	bc.gc = XCreateGC(dpy, root, 0, NULL);
+	XSetLineAttributes(dpy, bc.gc, 1, LineSolid, CapButt, JoinMiter);
 	if(!fibar.set)
-		XSetFont(dpy, dc.gc, fibar.xfont->fid);
+		XSetFont(dpy, bc.gc, fibar.xfont->fid);
 	/* init bars */
 	updatebars();
 	updatestatus();
