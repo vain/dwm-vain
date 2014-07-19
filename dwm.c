@@ -1754,10 +1754,6 @@ setborder(Client *c, enum BorderType state) {
 	if(!fititle.set)
 		XSetFont(dpy, gc, fititle.xfont->fid);
 
-	/* This only shows up if the SHAPE extension is not available. */
-	XSetForeground(dpy, gc, 0);
-	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
-
 	/* Draw unshifted */
 	switch(state) {
 		case StateNormal: colbase = ci.norm[ColBG]; break;
