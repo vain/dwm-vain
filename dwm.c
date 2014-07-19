@@ -203,7 +203,7 @@ static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
 static void drawsquare(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]);
-static void drawtext(const char *text, unsigned long col[ColLast], Bool invert);
+static void drawtext(const char *text, unsigned long col[ColLast], Bool invert, Bool centered);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -848,13 +848,13 @@ drawbar(Monitor *m) {
 			continue;
 		dc.w = TEXTW(tags[i], fibar);
 		col = m->tagset[m->seltags] & 1 << i ? ci.infosel : ci.infonorm;
-		drawtext(tags[i], col, urg & 1 << i);
+		drawtext(tags[i], col, urg & 1 << i, False);
 		drawsquare(m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
 		           occ & 1 << i, urg & 1 << i, col);
 		dc.x += dc.w;
 	}
 	dc.w = blw = TEXTW(m->ltsymbol, fibar);
-	drawtext(m->ltsymbol, ci.infonorm, False);
+	drawtext(m->ltsymbol, ci.infonorm, False, False);
 	dc.x += dc.w;
 	x = dc.x;
 
@@ -864,7 +864,7 @@ drawbar(Monitor *m) {
 		dc.x = x;
 		dc.w = m->ww - x;
 	}
-	drawtext(stext, ci.infonorm, False);
+	drawtext(stext, ci.infonorm, False, False);
 
 	/* Draw border. */
 	XSetForeground(dpy, *dc.gc, ci.linecolor);
@@ -898,7 +898,7 @@ drawsquare(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]) {
 }
 
 void
-drawtext(const char *text, unsigned long col[ColLast], Bool invert) {
+drawtext(const char *text, unsigned long col[ColLast], Bool invert, Bool centered) {
 	char buf[256];
 	int i, x, y, h, len, olen;
 
@@ -917,40 +917,13 @@ drawtext(const char *text, unsigned long col[ColLast], Bool invert) {
 	memcpy(buf, text, len);
 	if(len < olen)
 		for(i = len; i && i > len - 3; buf[--i] = '.');
+	if(centered)
+		x += (centered ? ((dc.w - h) / 2) - textnw(text, len, dc.fi) / 2 : 0);
 	XSetForeground(dpy, *dc.gc, col[invert ? ColBG : ColFG]);
 	if(dc.fi->set)
 		XmbDrawString(dpy, *dc.drawable, dc.fi->set, *dc.gc, x, y, buf, len);
 	else
 		XDrawString(dpy, *dc.drawable, *dc.gc, x, y, buf, len);
-}
-
-void
-drawtitletext(const char *text, unsigned long col, GC gc, Drawable d, int w) {
-	/* TODO refactor, this is mostly a copy of drawtext() */
-
-	char buf[512];
-	int i, x, y, h, len, olen;
-
-	if(!text)
-		return;
-	olen = strlen(text);
-	h = dc.fi->ascent + dc.fi->descent;
-	/* shorten text if necessary */
-	for(len = MIN(olen, sizeof buf); len && textnw(text, len, dc.fi) > w - h; len--);
-	if(!len)
-		return;
-	memcpy(buf, text, len);
-	if(len < olen)
-		for(i = len; i && i > len - 3; buf[--i] = '.');
-	x = titlepx + totalborderpx + beveltitle + (h / 2)
-	    + (centertitle ? ((w - h) / 2) - textnw(text, len, dc.fi) / 2 : 0);
-	y = totalborderpx + beveltitle + ((dc.fi->height + 2) / 2) - (h / 2) +
-	    dc.fi->ascent;
-	XSetForeground(dpy, gc, col);
-	if(dc.fi->set)
-		XmbDrawString(dpy, d, dc.fi->set, gc, x, y, buf, len);
-	else
-		XDrawString(dpy, d, gc, x, y, buf, len);
 }
 
 void
@@ -1755,6 +1728,7 @@ setborder(Client *c, enum BorderType state) {
 	Pixmap unshifted, shifted;
 	GC gc;
 	unsigned long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
+	unsigned long *col = NULL;
 	int i, j, io;
 	XSegment *segs = NULL;
 	XSegment cuts[8];
@@ -1946,21 +1920,22 @@ setborder(Client *c, enum BorderType state) {
 		free(segs);
 	}
 
+	dc.gc = &gc;
+	dc.drawable = &unshifted;
+	dc.fi = &fititle;
+	dc.w = c->w - 2*beveltitle;
+	dc.h = titlepx - 2*beveltitle;
+	dc.x = titlepx + totalborderpx + beveltitle;
+	dc.y = totalborderpx + beveltitle;
 	switch(state) {
-		case StateNormal: colbase = ci.norm[ColFG]; break;
-		case StateFocused: colbase = ci.sel[ColFG]; break;
-		case StateUrgent: colbase = ci.urg[ColFG]; break;
+		case StateNormal: col = ci.norm; break;
+		case StateFocused: col = ci.sel; break;
+		case StateUrgent: col = ci.urg; break;
 		case StateAuto: /* silence compiler warning */ break;
 	}
-	dc.fi = &fititle;
-	drawtitletext(c->name, colbase, gc, unshifted, c->w - 2*beveltitle);
-
-	if(c->isfloating) {
-		i = (fititle.ascent + fititle.descent + 2) / 4;
-		XDrawRectangle(dpy, unshifted, gc,
-		               titlepx + totalborderpx + beveltitle + 1,
-		               totalborderpx + beveltitle + 1, i, i);
-	}
+	drawtext(c->name, col, False, centertitle);
+	if(c->isfloating)
+		drawsquare(False, True, False, col);
 
 	/* Shift
 	 *
