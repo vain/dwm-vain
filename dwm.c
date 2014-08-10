@@ -501,11 +501,19 @@ centerfloater(const Arg *arg) {
 	if(!selmon->sel || selmon->sel->isfullscreen ||
 	   !(selmon->sel->isfloating || !selmon->lt->arrange))
 		return;
+	/* Notes:
+	 * - resize() sets the location of the "whole" client, i.e. this is
+	 *   where the *borders* will start EXCLUDING any modifications made
+	 *   by the SHAPE extension. Thus, in x direction, we have to
+	 *   account for the complete un-SHAPE'd border size.
+	 * - The "actual" height of the client is its own height plus the
+	 *   titlebar. Thus, in y direction, we only have to subtract
+	 *   titlepx once.
+	 */
 	resize(selmon->sel,
-			selmon->wx + 0.5 * (selmon->ww - selmon->sel->w - 2*selmon->sel->bw),
-			selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*selmon->sel->bw + titlepx),
-			selmon->sel->w, selmon->sel->h,
-			False);
+	       selmon->wx + 0.5 * (selmon->ww - selmon->sel->w - 2*(totalborderpx + titlepx)),
+	       selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*totalborderpx - titlepx),
+	       selmon->sel->w, selmon->sel->h, False);
 }
 
 void
@@ -1324,6 +1332,7 @@ maximizefloater(const Arg *arg) {
 	if(!selmon->sel || selmon->sel->isfullscreen ||
 	   !(selmon->sel->isfloating || !selmon->lt->arrange))
 		return;
+	/* See notes on centerfloater(). */
 	resize(selmon->sel,
 	       selmon->wx + gappx - titlepx,
 	       selmon->wy + gappx,
