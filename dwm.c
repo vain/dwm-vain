@@ -393,13 +393,13 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
 			*y = 0;
 	}
 	else {
-		if(*x >= m->wx + m->ww)
-			*x = m->wx + m->ww - WIDTH(c);
+		if(*x + titlepx >= m->wx + m->ww)
+			*x = m->wx + m->ww - c->w - 2*bevelborderpx - titlepx;
 		if(*y >= m->wy + m->wh)
-			*y = m->wy + m->wh - HEIGHT(c);
-		if(*x + *w + (2 * bevelborderpx) <= m->wx)
-			*x = m->wx;
-		if(*y + *h + (2 * bevelborderpx + titlepx) <= m->wy)
+			*y = m->wy + m->wh - c->h - 2*bevelborderpx - titlepx;
+		if(*x + *w + 2*bevelborderpx + titlepx <= m->wx)
+			*x = m->wx - titlepx;
+		if(*y + *h + 2*bevelborderpx + titlepx <= m->wy)
 			*y = m->wy;
 	}
 	if(*h < bh)
