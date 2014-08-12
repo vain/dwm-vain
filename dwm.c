@@ -1272,19 +1272,31 @@ manage(Window w, XWindowAttributes *wa) {
 	c->h = c->oldh = wa->height;
 	c->oldbw = wa->border_width;
 
-	/* FIXME these lines are probably broken since SHAPE borders */
-	if(c->x + WIDTH(c) > c->mon->mx + c->mon->mw)
-		c->x = c->mon->mx + c->mon->mw - WIDTH(c);
-	if(c->y + HEIGHT(c) > c->mon->my + c->mon->mh)
-		c->y = c->mon->my + c->mon->mh - HEIGHT(c);
+	/* Check if the client's right or bottom (visible) edge is outside
+	 * the screen. If it is, move the client back to the screen's edge. */
+	if(c->x + c->w + 2*bevelborderpx + titlepx > c->mon->mx + c->mon->mw)
+		c->x = c->mon->mx + c->mon->mw - c->w - 2*bevelborderpx - titlepx;
+	if(c->y + c->h + 2*bevelborderpx + titlepx > c->mon->my + c->mon->mh)
+		c->y = c->mon->my + c->mon->mh - c->h - 2*bevelborderpx - titlepx;
 
-	c->x = MAX(c->x, c->mon->mx);
-	c->x -= titlepx;
-	/* only fix client y-offset, if the client center might cover the bar */
-	c->y = MAX(c->y, ((c->mon->by == c->mon->my) && (c->x + (c->w / 2) >= c->mon->wx)
-	           && (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
-	c->x += gappx;
-	c->y += gappx;
+	/* Same for the left and top edge. */
+	c->x = MAX(c->x, c->mon->mx - titlepx);
+	c->y = MAX(c->y, c->mon->my + (c->mon->topbar ? bh : 0));
+
+	/* If a client would be placed exactly in the top-left corner (note:
+	 * I'm talking about its actual position here, not its visible
+	 * position, i.e. do NOT account for shape borders -- thus, this
+	 * is supposed to only affect newly created clients), then push it:
+	 * Its (visible) top-left corner will be aligned according to
+	 * useless gaps and SHAPE border's asymmetry.
+	 *
+	 * Yes, this is pretty ugly. */
+	if(c->x == c->mon->mx && c->y == c->mon->my + (c->mon->topbar ? bh : 0)) {
+		c->x -= titlepx;
+		c->x += gappx;
+		c->y += gappx;
+	}
+
 	c->bw = bevelborderpx + titlepx;
 
 	wc.border_width = c->bw;
