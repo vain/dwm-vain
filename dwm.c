@@ -386,14 +386,13 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
 	*w = MAX(1, *w);
 	*h = MAX(1, *h);
 	if(interact) {
-		/* FIXME this section is probably broken since SHAPE borders */
-		if(*x > sw)
-			*x = sw - WIDTH(c);
+		if(*x + titlepx >= sw)
+			*x = sw - c->w - 2*bevelborderpx - titlepx;
 		if(*y > sh)
-			*y = sh - HEIGHT(c);
-		if(*x + *w + (2 * bevelborderpx) < 0)
-			*x = 0;
-		if(*y + *h + (2 * bevelborderpx + titlepx) < 0)
+			*y = sh - c->h - 2*bevelborderpx - titlepx;
+		if(*x + *w + 2*bevelborderpx + titlepx < 0)
+			*x = -titlepx;
+		if(*y + *h + 2*bevelborderpx + titlepx < 0)
 			*y = 0;
 	}
 	else {
