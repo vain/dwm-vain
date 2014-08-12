@@ -51,8 +51,11 @@
 #define MAX(A, B)               ((A) > (B) ? (A) : (B))
 #define MIN(A, B)               ((A) < (B) ? (A) : (B))
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
+
+/* FIXME these two are probably broken since SHAPE borders */
 #define WIDTH(X)                ((X)->w + 2 * bevelborderpx)
 #define HEIGHT(X)               ((X)->h + 2 * bevelborderpx + titlepx)
+
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X, F)             (textnw(X, strlen(X), &F) + F.height)
 
@@ -383,6 +386,7 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
 	*w = MAX(1, *w);
 	*h = MAX(1, *h);
 	if(interact) {
+		/* FIXME this section is probably broken since SHAPE borders */
 		if(*x > sw)
 			*x = sw - WIDTH(c);
 		if(*y > sh)
@@ -687,10 +691,13 @@ configurerequest(XEvent *e) {
 				c->h = ev->height;
 				setshape(c);
 			}
+
+			/* FIXME these lines are probably broken since SHAPE borders */
 			if((c->x + c->w) > m->mx + m->mw && c->isfloating)
 				c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2); /* center in x direction */
 			if((c->y + c->h) > m->my + m->mh && c->isfloating)
 				c->y = m->my + (m->mh / 2 - HEIGHT(c) / 2); /* center in y direction */
+
 			if((ev->value_mask & (CWX|CWY)) && !(ev->value_mask & (CWWidth|CWHeight)))
 				configure(c);
 			if(ISVISIBLE(c))
@@ -1265,10 +1272,12 @@ manage(Window w, XWindowAttributes *wa) {
 	c->h = c->oldh = wa->height;
 	c->oldbw = wa->border_width;
 
+	/* FIXME these lines are probably broken since SHAPE borders */
 	if(c->x + WIDTH(c) > c->mon->mx + c->mon->mw)
 		c->x = c->mon->mx + c->mon->mw - WIDTH(c);
 	if(c->y + HEIGHT(c) > c->mon->my + c->mon->mh)
 		c->y = c->mon->my + c->mon->mh - HEIGHT(c);
+
 	c->x = MAX(c->x, c->mon->mx);
 	c->x -= titlepx;
 	/* only fix client y-offset, if the client center might cover the bar */
@@ -2239,6 +2248,7 @@ showhide(Client *c) {
 	}
 	else { /* hide clients bottom up */
 		showhide(c->snext);
+		/* FIXME probably broken since SHAPE borders */
 		XMoveWindow(dpy, c->win, WIDTH(c) * -2, c->y);
 	}
 }
