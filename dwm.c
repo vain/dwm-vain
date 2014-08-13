@@ -1289,9 +1289,21 @@ manage(Window w, XWindowAttributes *wa) {
 	 * Its (visible) top-left corner will be aligned according to
 	 * useless gaps and SHAPE border's asymmetry.
 	 *
-	 * Yes, this is pretty ugly. */
+	 * The second "if" is required for non-primary screens, i.e. screens
+	 * with mx != 0. You see, if mx == 0, then new clients automatically
+	 * get x = 0 and y = 0. But if mx != 0, then the statement above
+	 * sets x = mx - titlepx, because -- initially -- x = 0 and thus not
+	 * on the current screen... In this case, we don't have to push the
+	 * client to the left.
+	 *
+	 * Yes, this is pretty damn ugly. */
 	if(c->x == c->mon->mx && c->y == c->mon->my + (c->mon->topbar ? bh : 0)) {
 		c->x -= titlepx;
+		c->x += gappx;
+		c->y += gappx;
+	}
+	else if (c->mon->mx != 0 && c->x == c->mon->mx - titlepx &&
+	         c->y == c->mon->my + (c->mon->topbar ? bh : 0)) {
 		c->x += gappx;
 		c->y += gappx;
 	}
