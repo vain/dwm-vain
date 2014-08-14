@@ -1790,6 +1790,13 @@ setborder(Client *c, enum BorderType state) {
 	if(!fititle.set)
 		XSetFont(dpy, gc, fititle.xfont->fid);
 
+	/* Fill the pixmap with black color to get a well-defined border if
+	 * there's no SHAPE extension available or if other bad things
+	 * happen (clients trying to set their ohne SHAPEs which might be in
+	 * conflict with ours... stuff like that). */
+	XSetForeground(dpy, gc, 0);
+	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
+
 	/* Draw unshifted */
 	switch(state) {
 		case StateNormal: colbase = ci.norm[ColBG]; break;
