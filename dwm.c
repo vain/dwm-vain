@@ -1282,28 +1282,14 @@ manage(Window w, XWindowAttributes *wa) {
 	c->x = MAX(c->x, c->mon->mx - titlepx);
 	c->y = MAX(c->y, c->mon->my + (c->mon->topbar ? bh : 0));
 
-	/* If a client would be placed exactly in the top-left corner (note:
-	 * I'm talking about its actual position here, not its visible
-	 * position, i.e. do NOT account for shape borders -- thus, this
-	 * is supposed to only affect newly created clients), then push it:
-	 * Its (visible) top-left corner will be aligned according to
-	 * useless gaps and SHAPE border's asymmetry.
-	 *
-	 * The second "if" is required for non-primary screens, i.e. screens
-	 * with mx != 0. You see, if mx == 0, then new clients automatically
-	 * get x = 0 and y = 0. But if mx != 0, then the statement above
-	 * sets x = mx - titlepx, because -- initially -- x = 0 and thus not
-	 * on the current screen... In this case, we don't have to push the
-	 * client to the left.
-	 *
-	 * Yes, this is pretty damn ugly. */
-	if(c->x == c->mon->mx && c->y == c->mon->my + (c->mon->topbar ? bh : 0)) {
-		c->x -= titlepx;
-		c->x += gappx;
-		c->y += gappx;
-	}
-	else if (c->mon->mx != 0 && c->x == c->mon->mx - titlepx &&
-	         c->y == c->mon->my + (c->mon->topbar ? bh : 0)) {
+	/* If the client's initial coordinates were (0, 0), then align its
+	 * visible top left corner with the tiling grid. This only accounts
+	 * for clients that will be floating. */
+	if(wa->x == 0 && wa->y == 0) {
+		/* If this monitor's mx is not 0, then the MAX() above will
+		 * already have done this: */
+		if(c->mon->mx == 0)
+			c->x -= titlepx;
 		c->x += gappx;
 		c->y += gappx;
 	}
