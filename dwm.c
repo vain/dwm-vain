@@ -858,7 +858,7 @@ drawbar(Monitor *m) {
 	dc.x = 0;
 	dc.y = m->topbar ? 0 : 1;
 	for(i = 0; i < LENGTH(tags); i++) {
-		if (!((occ | m->tagset[m->seltags]) & 1 << i))
+		if (!((occ | m->tagset[m->seltags]) & 1 << i) || hiddentags & 1 << i)
 			continue;
 		dc.w = TEXTW(tags[i], fibar);
 		col = m->tagset[m->seltags] & 1 << i ? ci.infosel : ci.infonorm;
