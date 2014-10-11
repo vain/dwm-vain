@@ -331,7 +331,7 @@ static Cursor cursor[CurLast];
 static Display *dpy;
 static DC dc;
 static FontInfo fibar, fititle;
-static Monitor *mons = NULL, *selmon = NULL;
+static Monitor *mons = NULL, *selmon = NULL, *prevmon = NULL;
 static Window root;
 
 /* configuration, allows nested code to access above variables */
@@ -825,13 +825,25 @@ dirtomon(int dir) {
 	Monitor *m = NULL;
 
 	if(dir > 0) {
+		/* return next monitor or wrap around and return first monitor */
 		if(!(m = selmon->next))
 			m = mons;
 	}
-	else if(selmon == mons)
-		for(m = mons; m->next; m = m->next);
-	else
-		for(m = mons; m->next != selmon; m = m->next);
+	else if(dir < 0) {
+		if(selmon == mons)
+			/* wrap around and return last monitor */
+			for(m = mons; m->next; m = m->next);
+		else
+			/* return monitor right before the current monitor */
+			for(m = mons; m->next && m->next != selmon; m = m->next);
+	}
+	else {
+		/* return previously selected monitor or next monitor (if we
+		 * never selected another monitor before) */
+		if(!(m = prevmon))
+			m = dirtomon(1);
+	}
+
 	return m;
 }
 
@@ -1012,6 +1024,7 @@ focusmon(const Arg *arg) {
 		return;
 	unfocus(selmon->sel, False); /* s/True/False/ fixes input focus issues
 					in gedit and anjuta */
+	prevmon = selmon;
 	selmon = m;
 	focus(NULL);
 }
