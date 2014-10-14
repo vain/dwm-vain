@@ -2623,6 +2623,7 @@ updategeom(void) {
 	Bool dirty = False;
 
 	destroyallbarriers();
+	prevmon = NULL;
 
 	if(XineramaIsActive(dpy)) {
 		int i, j, n, nn;
