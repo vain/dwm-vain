@@ -822,20 +822,52 @@ die(const char *errstr, ...) {
 
 Monitor *
 dirtomon(int dir) {
-	Monitor *m = NULL;
+	Monitor *m = NULL, *nearest = selmon, *faraway = selmon;
+	int min_d_pos = 0, min_d_neg = 0, d;
 
-	if(dir > 0) {
-		/* return next monitor or wrap around and return first monitor */
-		if(!(m = selmon->next))
-			m = mons;
-	}
-	else if(dir < 0) {
-		if(selmon == mons)
-			/* wrap around and return last monitor */
-			for(m = mons; m->next; m = m->next);
-		else
-			/* return monitor right before the current monitor */
-			for(m = mons; m->next && m->next != selmon; m = m->next);
+	/*
+	 * dir =  0:  Switch to previously selected monitor
+	 *     =  1:  Switch to monitor on the right
+	 *     = -1:  Switch to monitor on the left
+	 *     =  2:  Switch to monitor above
+	 *     = -2:  Switch to monitor below
+	 */
+
+	if(dir != 0) {
+		/* Find the closest monitor in the specified direction
+		 * ("nearest") and the one with the largest negative distance
+		 * ("faraway"). */
+		for(m = mons; m; m = m->next) {
+			/* Choose axis. */
+			if(dir > 1 || dir < -1)
+				d = m->my - selmon->my;
+			else
+				d = m->mx - selmon->mx;
+
+			/* It's the same code for both directions, just flip the
+			 * sign. */
+			d *= dir;
+
+			if(d > 0) {
+				/* min_d_pos == 0 happens if this is the first monitor
+				 * we're looking at. */
+				if(min_d_pos == 0 || d < min_d_pos) {
+					min_d_pos = d;
+					nearest = m;
+				}
+			}
+			else if(d < 0) {
+				if(min_d_neg == 0 || d < min_d_neg) {
+					min_d_neg = d;
+					faraway = m;
+				}
+			}
+			/* d == 0 is selmon. Ignore that one. */
+		}
+		/* If we were unable to find a suitable monitor, then we're
+		 * already at the outermost monitor. Thus, wrap to the other
+		 * side. */
+		m = nearest == selmon ? faraway : nearest;
 	}
 	else {
 		/* return previously selected monitor or next monitor (if we
