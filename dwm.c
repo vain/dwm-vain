@@ -870,8 +870,8 @@ dirtomon(int dir) {
 		m = nearest == selmon ? faraway : nearest;
 	}
 	else {
-		/* return previously selected monitor or next monitor (if we
-		 * never selected another monitor before) */
+		/* Return previously selected monitor or next monitor (if we
+		 * never selected another monitor before). */
 		if(!(m = prevmon))
 			m = dirtomon(1);
 	}
