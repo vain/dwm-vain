@@ -917,13 +917,15 @@ drawbar(Monitor *m) {
 	dc.x += dc.w;
 	x = dc.x;
 
-	dc.w = TEXTW(stext, fibar);
-	dc.x = m->ww - dc.w;
-	if(dc.x < x) {
-		dc.x = x;
-		dc.w = m->ww - x;
+	if(m == selmon) { /* status is only drawn on selected monitor */
+		dc.w = TEXTW(stext, fibar);
+		dc.x = m->ww - dc.w;
+		if(dc.x < x) {
+			dc.x = x;
+			dc.w = m->ww - x;
+		}
+		drawtext(stext, ci.infonorm, False, False);
 	}
-	drawtext(stext, ci.infonorm, False, False);
 
 	/* Draw border. */
 	XSetForeground(dpy, *dc.gc, ci.linecolor);
@@ -2830,11 +2832,9 @@ updatewindowtype(Client *c) {
 
 void
 updatestatus(void) {
-	Monitor *m;
 	if(!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
 		strcpy(stext, "dwm-"VERSION);
-	for(m = mons; m; m = m->next)
-		drawbar(m);
+	drawbar(selmon);
 }
 
 void
