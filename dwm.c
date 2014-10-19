@@ -486,6 +486,7 @@ buttonpress(XEvent *e) {
 	/* focus monitor if necessary */
 	if((m = wintomon(ev->window)) && m != selmon) {
 		unfocus(selmon->sel, True);
+		prevmon = selmon;
 		selmon = m;
 		focus(NULL);
 	}
@@ -996,6 +997,7 @@ enternotify(XEvent *e) {
 	m = c ? c->mon : wintomon(ev->window);
 	if(m != selmon) {
 		unfocus(selmon->sel, True);
+		prevmon = selmon;
 		selmon = m;
 	}
 	else if(!c || c == selmon->sel)
@@ -1020,8 +1022,10 @@ focus(Client *c) {
 	if(selmon->sel && selmon->sel != c)
 		unfocus(selmon->sel, False);
 	if(c) {
-		if(c->mon != selmon)
+		if(c->mon != selmon) {
+			prevmon = selmon;
 			selmon = c->mon;
+		}
 		if(c->isurgent)
 			clearurgent(c);
 		detachstack(c);
@@ -1450,6 +1454,7 @@ motionnotify(XEvent *e) {
 		return;
 	if((m = recttomon(ev->x_root, ev->y_root, 1, 1)) != mon && mon) {
 		unfocus(selmon->sel, True);
+		prevmon = selmon;
 		selmon = m;
 		focus(NULL);
 	}
@@ -1500,6 +1505,7 @@ movemouse(const Arg *arg) {
 	XUngrabPointer(dpy, CurrentTime);
 	if((m = recttomon(c->x, c->y, c->w, c->h)) != selmon) {
 		sendmon(c, m);
+		prevmon = selmon;
 		selmon = m;
 		focus(NULL);
 	}
@@ -1704,6 +1710,7 @@ resizemouse(const Arg *arg) {
 	while(XCheckMaskEvent(dpy, EnterWindowMask, &ev));
 	if((m = recttomon(c->x, c->y, c->w, c->h)) != selmon) {
 		sendmon(c, m);
+		prevmon = selmon;
 		selmon = m;
 		focus(NULL);
 	}
