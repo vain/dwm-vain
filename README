@@ -83,36 +83,6 @@ This fork is based on dwm-6.1. Major changes since then:
 	  the slave column. ("nmaster_dynamic_max" is a limit to this.)
 	- Support for useless gaps
 - Per-rule resize hints
-- Pixmap borders and pixmap title bars
 - dirtomon is based on geometry rather than internal indices
 
 For a full list, see the git log: "git log 1bdb393..HEAD"
-
-
-A word on my window decorations
--------------------------------
-
-Upstream dwm has only very basic window decorations, i.e. just the
-single colored border. This leads to two problems:
-
- 1. Java gets cranky: Menus are misaligned.
- 2. Windows don't have title bars.
-
-I don't care about Java that much but I consider title bars to be very
-useful. They are not REQUIRED and I lived a long time without them, but
-still, they are very, very useful. Pixmap borders are also much easier
-on the eye (for me, at least).
-
-To address #2, I added pixmap borders in mid 2014 and, with the power of
-X11's SHAPE extension, title bars. This works -- mostly. It does not
-work when a client tries to use the SHAPE extension by itself. In that
-case, things just blow up. Recent versions of Chromium, for example,
-expose this problem.
-
-Long story short, a window manager should not fiddle with a client's
-SHAPE. So, my title bars are actually a very dirty hack. They also lead
-to a lot of complications in the code.
-
-I'm working on a proper solution that fixes all these issues. For the
-time being, the current pixmap-SHAPE borders will stay and I will add
-further hackarounds to make them work better.

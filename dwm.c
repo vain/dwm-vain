@@ -39,7 +39,6 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/Xfixes.h>
-#include <X11/extensions/shape.h>
 
 /* macros */
 #define BUTTONMASK              (ButtonPressMask|ButtonReleaseMask)
@@ -52,9 +51,8 @@
 #define MIN(A, B)               ((A) < (B) ? (A) : (B))
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
 
-/* FIXME these two are probably broken since SHAPE borders */
-#define WIDTH(X)                ((X)->w + 2 * bevelborderpx)
-#define HEIGHT(X)               ((X)->h + 2 * bevelborderpx + titlepx)
+#define WIDTH(X)                ((X)->w + 2 * (X)->bw)
+#define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
 
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X, F)             (textnw(X, strlen(X), &F) + F.height)
@@ -233,7 +231,6 @@ static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static void movestack(const Arg *arg);
-static unsigned long multiplycolor(unsigned long col, double fact);
 static Client *nexttiled(Client *c);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
@@ -254,7 +251,6 @@ static void setfocus(Client *c);
 static void setfullscreen(Client *c, Bool fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
-static void setshape(Client *c);
 static void setup(void);
 static void shiftmask(unsigned int *m, int dir);
 static void shiftview(const Arg *arg);
@@ -297,8 +293,6 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static Client *prevclient = NULL;
 static const char broken[] = "broken";
 static char stext[256];
-static int titlepx;
-static int bevelborderpx;
 static int gappx;
 static int screen;
 static int screenbarriers;
@@ -330,7 +324,7 @@ static ColorInfo ci;
 static Cursor cursor[CurLast];
 static Display *dpy;
 static DC dc;
-static FontInfo fibar, fititle;
+static FontInfo fibar;
 static Monitor *mons = NULL, *selmon = NULL, *prevmon = NULL;
 static Window root;
 
@@ -386,23 +380,23 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
 	*w = MAX(1, *w);
 	*h = MAX(1, *h);
 	if(interact) {
-		if(*x + titlepx >= sw)
-			*x = sw - c->w - 2*bevelborderpx - titlepx;
+		if(*x >= sw)
+			*x = sw - WIDTH(c);
 		if(*y > sh)
-			*y = sh - c->h - 2*bevelborderpx - titlepx;
-		if(*x + *w + 2*bevelborderpx + titlepx < 0)
-			*x = -titlepx;
-		if(*y + *h + 2*bevelborderpx + titlepx < 0)
+			*y = sh - HEIGHT(c);
+		if(*x + *w + 2 * c->bw < 0)
+			*x = 0;
+		if(*y + *h + 2 * c->bw < 0)
 			*y = 0;
 	}
 	else {
-		if(*x + titlepx >= m->wx + m->ww)
-			*x = m->wx + m->ww - c->w - 2*bevelborderpx - titlepx;
+		if(*x >= m->wx + m->ww)
+			*x = m->wx + m->ww - WIDTH(c);
 		if(*y >= m->wy + m->wh)
-			*y = m->wy + m->wh - c->h - 2*bevelborderpx - titlepx;
-		if(*x + *w + 2*bevelborderpx + titlepx <= m->wx)
-			*x = m->wx - titlepx;
-		if(*y + *h + 2*bevelborderpx + titlepx <= m->wy)
+			*y = m->wy + m->wh - HEIGHT(c);
+		if(*x + *w + 2 * c->bw <= m->wx)
+			*x = m->wx;
+		if(*y + *h + 2 * c->bw <= m->wy)
 			*y = m->wy;
 	}
 	if(*h < bh)
@@ -504,18 +498,9 @@ centerfloater(const Arg *arg) {
 	if(!selmon->sel || selmon->sel->isfullscreen ||
 	   !(selmon->sel->isfloating || !selmon->lt->arrange))
 		return;
-	/* Notes:
-	 * - resize() sets the location of the "whole" client, i.e. this is
-	 *   where the *borders* will start EXCLUDING any modifications made
-	 *   by the SHAPE extension. Thus, in x direction, we have to
-	 *   account for the complete un-SHAPE'd border size.
-	 * - The "actual" height of the client is its own height plus the
-	 *   titlebar. Thus, in y direction, we only have to subtract
-	 *   titlepx once.
-	 */
 	resize(selmon->sel,
-	       selmon->wx + 0.5 * (selmon->ww - selmon->sel->w - 2*(bevelborderpx + titlepx)),
-	       selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*bevelborderpx - titlepx),
+	       selmon->wx + 0.5 * (selmon->ww - selmon->sel->w - 2*selmon->sel->bw),
+	       selmon->wy + 0.5 * (selmon->wh - selmon->sel->h - 2*selmon->sel->bw),
 	       selmon->sel->w, selmon->sel->h, False);
 }
 
@@ -557,7 +542,6 @@ cleanup(void) {
 		while(m->stack)
 			unmanage(m->stack, False);
 	cleanupfont(&fibar);
-	cleanupfont(&fititle);
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	XFreePixmap(dpy, bc.drawable);
 	XFreeGC(dpy, bc.gc);
@@ -628,8 +612,6 @@ configure(Client *c) {
 	ce.above = None;
 	ce.override_redirect = False;
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
-	setborder(c, StateAuto);
-	setshape(c);
 }
 
 void
@@ -637,7 +619,6 @@ configurenotify(XEvent *e) {
 	Monitor *m;
 	XConfigureEvent *ev = &e->xconfigure;
 	Bool dirty;
-	Client *c = wintoclient(ev->window);
 
 	// TODO: updategeom handling sucks, needs to be simplified
 	if(ev->window == root) {
@@ -654,9 +635,6 @@ configurenotify(XEvent *e) {
 			focus(NULL);
 			arrange(NULL);
 		}
-	}
-	else if(c) {
-		setborder(c, StateAuto);
 	}
 }
 
@@ -683,15 +661,12 @@ configurerequest(XEvent *e) {
 			if(ev->value_mask & CWWidth) {
 				c->oldw = c->w;
 				c->w = ev->width;
-				setshape(c);
 			}
 			if(ev->value_mask & CWHeight) {
 				c->oldh = c->h;
 				c->h = ev->height;
-				setshape(c);
 			}
 
-			/* FIXME these lines are probably broken since SHAPE borders */
 			if((c->x + c->w) > m->mx + m->mw && c->isfloating)
 				c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2); /* center in x direction */
 			if((c->y + c->h) > m->my + m->mh && c->isfloating)
@@ -727,23 +702,23 @@ createallbarriers(void) {
 			if(m->showbar) {
 				/* Top, bottom, left, right */
 				m->barrier[0] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, m->wy + bevelborderpx + titlepx + gappx,
-						m->wx + m->ww - 1, m->wy + bevelborderpx + titlepx + gappx,
+						m->wx, m->wy + borderpx + gappx,
+						m->wx + m->ww - 1, m->wy + borderpx + gappx,
 						BarrierPositiveY,
 						0, NULL);
 				m->barrier[1] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx, m->wy + m->wh - bevelborderpx - gappx,
-						m->wx + m->ww - 1, m->wy + m->wh - bevelborderpx - gappx,
+						m->wx, m->wy + m->wh - borderpx - gappx,
+						m->wx + m->ww - 1, m->wy + m->wh - borderpx - gappx,
 						BarrierNegativeY,
 						0, NULL);
 				m->barrier[2] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx + bevelborderpx + gappx, m->wy,
-						m->wx + bevelborderpx + gappx, m->wy + m->wh - 1,
+						m->wx + borderpx + gappx, m->wy,
+						m->wx + borderpx + gappx, m->wy + m->wh - 1,
 						BarrierPositiveX,
 						0, NULL);
 				m->barrier[3] = XFixesCreatePointerBarrier(dpy, root,
-						m->wx + m->ww - bevelborderpx - gappx, m->wy,
-						m->wx + m->ww - bevelborderpx - gappx, m->wy + m->wh - 1,
+						m->wx + m->ww - borderpx - gappx, m->wy,
+						m->wx + m->ww - borderpx - gappx, m->wy + m->wh - 1,
 						BarrierNegativeX,
 						0, NULL);
 			}
@@ -1320,28 +1295,24 @@ manage(Window w, XWindowAttributes *wa) {
 
 	/* Check if the client's right or bottom (visible) edge is outside
 	 * the screen. If it is, move the client back to the screen's edge. */
-	if(c->x + c->w + 2*bevelborderpx + titlepx > c->mon->mx + c->mon->mw)
-		c->x = c->mon->mx + c->mon->mw - c->w - 2*bevelborderpx - titlepx;
-	if(c->y + c->h + 2*bevelborderpx + titlepx > c->mon->my + c->mon->mh)
-		c->y = c->mon->my + c->mon->mh - c->h - 2*bevelborderpx - titlepx;
+	if(c->x + c->w + 2*borderpx > c->mon->mx + c->mon->mw)
+		c->x = c->mon->mx + c->mon->mw - c->w - 2*borderpx;
+	if(c->y + c->h + 2*borderpx > c->mon->my + c->mon->mh)
+		c->y = c->mon->my + c->mon->mh - c->h - 2*borderpx;
 
 	/* Same for the left and top edge. */
-	c->x = MAX(c->x, c->mon->mx - titlepx);
+	c->x = MAX(c->x, c->mon->mx);
 	c->y = MAX(c->y, c->mon->my + (c->mon->topbar ? bh : 0));
 
 	/* If the client's initial coordinates were (0, 0), then align its
 	 * visible top left corner with the tiling grid. This only accounts
 	 * for clients that will be floating. */
 	if(wa->x == 0 && wa->y == 0) {
-		/* If this monitor's mx is not 0, then the MAX() above will
-		 * already have done this: */
-		if(c->mon->mx == 0)
-			c->x -= titlepx;
 		c->x += gappx;
 		c->y += gappx;
 	}
 
-	c->bw = bevelborderpx + titlepx;
+	c->bw = borderpx;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
@@ -1399,10 +1370,10 @@ maximizefloater(const Arg *arg) {
 		return;
 	/* See notes on centerfloater(). */
 	resize(selmon->sel,
-	       selmon->wx + gappx - titlepx,
+	       selmon->wx + gappx,
 	       selmon->wy + gappx,
-	       selmon->ww - (2*bevelborderpx) - (2*gappx),
-	       selmon->wh - (2*bevelborderpx + titlepx) - (2*gappx),
+	       selmon->ww - (2*selmon->sel->bw) - (2*gappx),
+	       selmon->wh - (2*selmon->sel->bw) - (2*gappx),
 	       False);
 }
 
@@ -1435,10 +1406,10 @@ monocle(Monitor *m) {
 		snprintf(m->ltsymbol, sizeof m->ltsymbol, "[%d]", n);
 	for(c = nexttiled(m->clients); c; c = nexttiled(c->next))
 		resize(c,
-		       m->wx + gappx - titlepx,
+		       m->wx + gappx,
 		       m->wy + gappx,
-		       m->ww - (2*bevelborderpx) - (2*gappx),
-		       m->wh - (2*bevelborderpx + titlepx) - (2*gappx),
+		       m->ww - (2*c->bw) - (2*gappx),
+		       m->wh - (2*c->bw) - (2*gappx),
 		       False);
 }
 
@@ -1490,6 +1461,14 @@ movemouse(const Arg *arg) {
 			ny = ocy + (ev.xmotion.y - y);
 			if(nx >= selmon->wx && nx <= selmon->wx + selmon->ww
 			&& ny >= selmon->wy && ny <= selmon->wy + selmon->wh) {
+				if(abs(selmon->wx - nx) < snap)
+					nx = selmon->wx;
+				else if(abs((selmon->wx + selmon->ww) - (nx + WIDTH(c))) < snap)
+					nx = selmon->wx + selmon->ww - WIDTH(c);
+				if(abs(selmon->wy - ny) < snap)
+					ny = selmon->wy;
+				else if(abs((selmon->wy + selmon->wh) - (ny + HEIGHT(c))) < snap)
+					ny = selmon->wy + selmon->wh - HEIGHT(c);
 				if(!c->isfloating && selmon->lt->arrange
 				&& (abs(nx - c->x) > snap || abs(ny - c->y) > snap))
 					togglefloating(NULL);
@@ -1559,17 +1538,6 @@ movestack(const Arg *arg) {
 	}
 }
 
-unsigned long
-multiplycolor(unsigned long col, double fact) {
-	int r = (int)(((0xFF0000 & col) >> 16) * fact);
-	int g = (int)(((0x00FF00 & col) >>  8) * fact);
-	int b = (int)(((0x0000FF & col) >>  0) * fact);
-	r = r > 255 ? 255 : r;
-	g = g > 255 ? 255 : g;
-	b = b > 255 ? 255 : b;
-	return (0xFF000000 & col) | (r << 16) | (g <<  8) | (b <<  0);
-}
-
 Client *
 nexttiled(Client *c) {
 	for(; c && (c->isfloating || !ISVISIBLE(c)); c = c->next);
@@ -1612,7 +1580,8 @@ propertynotify(XEvent *e) {
 		}
 		if(ev->atom == XA_WM_NAME || ev->atom == netatom[NetWMName]) {
 			updatetitle(c);
-			setborder(c, StateAuto);
+			if(c == c->mon->sel)
+				drawbar(c->mon);
 		}
 		if(ev->atom == netatom[NetWMWindowType])
 			updatewindowtype(c);
@@ -1675,8 +1644,7 @@ resizemouse(const Arg *arg) {
 	if(XGrabPointer(dpy, root, False, MOUSEMASK, GrabModeAsync, GrabModeAsync,
 	                None, cursor[CurResize], CurrentTime) != GrabSuccess)
 		return;
-	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + bevelborderpx - 1,
-	             c->h + bevelborderpx - 1);
+	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + c->bw - 1, c->h + c->bw - 1);
 	do {
 		XMaskEvent(dpy, MOUSEMASK|ExposureMask|SubstructureRedirectMask, &ev);
 		switch(ev.type) {
@@ -1686,8 +1654,8 @@ resizemouse(const Arg *arg) {
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			nw = MAX(ev.xmotion.x - ocx - 2 * bevelborderpx - titlepx + 1, 1);
-			nh = MAX(ev.xmotion.y - ocy - 2 * bevelborderpx - titlepx + 1, 1);
+			nw = MAX(ev.xmotion.x - ocx - 2 * c->bw + 1, 1);
+			nh = MAX(ev.xmotion.y - ocy - 2 * c->bw + 1, 1);
 			if(c->mon->wx + nw >= selmon->wx && c->mon->wx + nw <= selmon->wx + selmon->ww
 			&& c->mon->wy + nh >= selmon->wy && c->mon->wy + nh <= selmon->wy + selmon->wh)
 			{
@@ -1700,8 +1668,7 @@ resizemouse(const Arg *arg) {
 			break;
 		}
 	} while(ev.type != ButtonRelease);
-	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + bevelborderpx - 1,
-	             c->h + bevelborderpx - 1);
+	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + c->bw - 1, c->h + c->bw - 1);
 	XUngrabPointer(dpy, CurrentTime);
 	while(XCheckMaskEvent(dpy, EnterWindowMask, &ev));
 	if((m = recttomon(c->x, c->y, c->w, c->h)) != selmon) {
@@ -1794,14 +1761,7 @@ sendmon(Client *c, Monitor *m) {
 
 void
 setborder(Client *c, enum BorderType state) {
-	Pixmap unshifted, shifted;
-	GC gc;
-	unsigned long colbase = 0, colouter = 0, colmiddle = 0, colinner = 0;
-	unsigned long *col = NULL;
-	int i, j, io;
-	XSegment *segs = NULL;
-	XSegment cuts[8];
-	size_t segsi, bordersi;
+	unsigned long col = 0;
 
 	if(c->bw <= 0)
 		return;
@@ -1812,264 +1772,14 @@ setborder(Client *c, enum BorderType state) {
 		                                                               StateNormal));
 	}
 
-	/* X begins tiling the pixmap at the client's origin -- not at the
-	 * border's origin. */
-
-	gc = XCreateGC(dpy, root, 0, NULL);
-	unshifted = XCreatePixmap(dpy, root, c->w + 2*c->bw, c->h + 2*c->bw,
-	                          DefaultDepth(dpy, screen));
-	shifted = XCreatePixmap(dpy, root, c->w + 2*c->bw, c->h + 2*c->bw,
-	                        DefaultDepth(dpy, screen));
-	if(!fititle.set)
-		XSetFont(dpy, gc, fititle.xfont->fid);
-
-	/* Fill the pixmap with black color to get a well-defined border if
-	 * there's no SHAPE extension available or if other bad things
-	 * happen (clients trying to set their ohne SHAPEs which might be in
-	 * conflict with ours... stuff like that). */
-	XSetForeground(dpy, gc, 0);
-	XFillRectangle(dpy, unshifted, gc, 0, 0, c->w + 2*c->bw, c->h + 2*c->bw);
-
-	/* Draw unshifted */
 	switch(state) {
-		case StateNormal: colbase = ci.norm[ColBG]; break;
-		case StateFocused: colbase = ci.sel[ColBG]; break;
-		case StateUrgent: colbase = ci.urg[ColBG]; break;
+		case StateNormal: col = ci.norm[ColBG]; break;
+		case StateFocused: col = ci.sel[ColBG]; break;
+		case StateUrgent: col = ci.urg[ColBG]; break;
 		case StateAuto: /* silence compiler warning */ break;
 	}
 
-	colouter = multiplycolor(colbase, bevelfacts[0]);
-	colmiddle = multiplycolor(colbase, bevelfacts[1]);
-	colinner = multiplycolor(colbase, bevelfacts[2]);
-
-	XSetForeground(dpy, gc, colmiddle);
-	XFillRectangle(dpy, unshifted, gc, titlepx, 0, c->w + 2*bevelborderpx,
-	               c->h + 2*bevelborderpx + titlepx);
-
-	for(io = 0; io <= 1; io++) {
-		bordersi = (io == 0 ? 0 : 2);
-		if(borders[bordersi] > 0) {
-			segs = calloc(sizeof(XSegment), 2*borders[bordersi]);
-			if(!segs)
-				die("fatal: could not malloc() for pixmap border\n");
-
-			/* left and top */
-			XSetForeground(dpy, gc, (io == 0 ? colouter : colinner));
-			for(i = 0, segsi = 0; i < borders[bordersi]; i++, segsi++) {
-				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = j + titlepx;
-				segs[segsi].y1 = j;
-				segs[segsi].x2 = j + titlepx;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1 - titlepx;
-			}
-			for(i = 0; i < borders[bordersi]; i++, segsi++) {
-				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = j + titlepx;
-				segs[segsi].y1 = j;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1 - titlepx;
-				segs[segsi].y2 = j;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, 2*borders[bordersi]);
-
-			/* bottom and right */
-			XSetForeground(dpy, gc, (io == 0 ? colinner : colouter));
-			for(i = 0, segsi = 0; i < borders[bordersi]; i++, segsi++) {
-				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = j + 1 + titlepx;
-				segs[segsi].y1 = c->h + 2*c->bw - j - 1 - titlepx;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1 - titlepx;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1 - titlepx;
-			}
-			for(i = 0; i < borders[bordersi]; i++, segsi++) {
-				j = io == 0 ? i : i + borders[0] + borders[1];
-				segs[segsi].x1 = c->w + 2*c->bw - j - 1 - titlepx;
-				segs[segsi].y1 = j + 1;
-				segs[segsi].x2 = c->w + 2*c->bw - j - 1 - titlepx;
-				segs[segsi].y2 = c->h + 2*c->bw - j - 1 - titlepx;
-			}
-			XDrawSegments(dpy, unshifted, gc, segs, 2*borders[bordersi]);
-
-			free(segs);
-		}
-	}
-
-	if((borders[0] > 0 || borders[2] > 0) &&
-	   (c->w > 4*(c->bw + 1) && c->h > 4*(c->bw + 1))) {
-		/* Top left, top right, bottom left, bottom right. */
-		cuts[0].x1 = cuts[0].x2 = 2*titlepx + bevelborderpx;
-		cuts[0].y1 = MAX(MIN(1, borders[0] - 1), 0);
-		cuts[0].y2 = MAX(bevelborderpx - 2, borders[0] + borders[1] - 1);
-
-		cuts[1].x1 = cuts[1].x2 = c->w + bevelborderpx;
-		cuts[1].y1 = cuts[0].y1;
-		cuts[1].y2 = cuts[0].y2;
-
-		cuts[2].x1 = cuts[0].x1;
-		cuts[2].x2 = cuts[0].x2;
-		cuts[2].y1 = cuts[0].y1 + c->h + c->bw;
-		cuts[2].y2 = cuts[0].y2 + c->h + c->bw;
-
-		cuts[3].x1 = cuts[1].x1;
-		cuts[3].x2 = cuts[1].x2;
-		cuts[3].y1 = cuts[1].y1 + c->h + c->bw;
-		cuts[3].y2 = cuts[1].y2 + c->h + c->bw;
-
-		/* Left top, left bottom, right top, right bottom. */
-		cuts[4].x1 = cuts[0].y1 + titlepx;
-		cuts[4].y1 = cuts[0].x1 - titlepx;
-		cuts[4].x2 = cuts[0].y2 + titlepx;
-		cuts[4].y2 = cuts[0].x2 - titlepx;
-
-		cuts[5].x1 = cuts[4].x1;
-		cuts[5].x2 = cuts[4].x2;
-		cuts[5].y1 = cuts[5].y2 = c->h + bevelborderpx;
-
-		cuts[6].x1 = cuts[4].x1 + c->w + bevelborderpx;
-		cuts[6].x2 = cuts[4].x2 + c->w + bevelborderpx;
-		cuts[6].y1 = cuts[4].y1;
-		cuts[6].y2 = cuts[4].y2;
-
-		cuts[7].x1 = cuts[5].x1 + c->w + bevelborderpx;
-		cuts[7].x2 = cuts[5].x2 + c->w + bevelborderpx;
-		cuts[7].y1 = cuts[5].y1;
-		cuts[7].y2 = cuts[5].y2;
-
-		/* Draw bright segments. */
-		XSetForeground(dpy, gc, colouter);
-		XDrawSegments(dpy, unshifted, gc, cuts, 8);
-
-		/* Shift them by 1px and draw dark segments. */
-		for(segsi = 0; segsi <= 3; segsi++) {
-			cuts[segsi].x1--;
-			cuts[segsi].x2--;
-		}
-		for(segsi = 4; segsi <= 7; segsi++) {
-			cuts[segsi].y1--;
-			cuts[segsi].y2--;
-		}
-		XSetForeground(dpy, gc, colinner);
-		XDrawSegments(dpy, unshifted, gc, cuts, 8);
-	}
-
-	/* Draw titlebar */
-	if(beveltitle > 0) {
-		segs = calloc(sizeof(XSegment), 2*beveltitle);
-		if(!segs)
-			die("fatal: could not malloc() for pixmap title\n");
-
-		/* left and top */
-		XSetForeground(dpy, gc, colouter);
-		for(i = 0, segsi = 0; i < beveltitle; i++, segsi++) {
-			segs[segsi].x1 = titlepx + bevelborderpx + i;
-			segs[segsi].y1 = bevelborderpx + i;
-			segs[segsi].x2 = titlepx + bevelborderpx + i;
-			segs[segsi].y2 = bevelborderpx + titlepx - i - 1;
-		}
-		for(i = 0; i < beveltitle; i++, segsi++) {
-			segs[segsi].x1 = titlepx + bevelborderpx + i;
-			segs[segsi].y1 = bevelborderpx + i;
-			segs[segsi].x2 = bevelborderpx + titlepx + c->w - i - 1;
-			segs[segsi].y2 = bevelborderpx + i;
-		}
-		XDrawSegments(dpy, unshifted, gc, segs, 2*beveltitle);
-
-		/* bottom and right */
-		XSetForeground(dpy, gc, colinner);
-		for(i = 0, segsi = 0; i < beveltitle; i++, segsi++) {
-			segs[segsi].x1 = titlepx + bevelborderpx + i;
-			segs[segsi].y1 = titlepx + bevelborderpx - i - 1;
-			segs[segsi].x2 = bevelborderpx + titlepx + c->w - i - 1;
-			segs[segsi].y2 = titlepx + bevelborderpx - i - 1;
-		}
-		for(i = 0; i < beveltitle; i++, segsi++) {
-			segs[segsi].x1 = c->w + titlepx + bevelborderpx - i - 1;
-			segs[segsi].y1 = bevelborderpx + i;
-			segs[segsi].x2 = c->w + titlepx + bevelborderpx - i - 1;
-			segs[segsi].y2 = bevelborderpx + titlepx - i - 1;
-		}
-		XDrawSegments(dpy, unshifted, gc, segs, 2*beveltitle);
-
-		free(segs);
-	}
-
-	dc.gc = &gc;
-	dc.drawable = &unshifted;
-	dc.fi = &fititle;
-	dc.w = c->w - 2*beveltitle;
-	dc.h = titlepx - 2*beveltitle;
-	dc.x = titlepx + bevelborderpx + beveltitle;
-	dc.y = bevelborderpx + beveltitle;
-	switch(state) {
-		case StateNormal: col = ci.norm; break;
-		case StateFocused: col = ci.sel; break;
-		case StateUrgent: col = ci.urg; break;
-		case StateAuto: /* silence compiler warning */ break;
-	}
-	drawtext(c->name, col, False, centertitle);
-	if(c->isfloating)
-		drawsquare(False, True, False, col);
-
-	/* Shift
-	 *
-	 * This is what we have drawn above:
-	 *
-	 *        +----+-----------------+----+
-	 *        | tl |   top border    | tr |
-	 *        +----+-----------------+----+
-	 *        | le |   Client area,  | ri |
-	 *        | ft |    invisible    | gh |
-	 *        |    |                 | t  |
-	 *        +----+-----------------+----+
-	 *        | bl |  bottom border  | br |
-	 *        +----+-----------------+----+
-	 *
-	 * However, X starts tiling our pixmap at the client's origin (top
-	 * left corner). This means we have to layout our pixmap like this:
-	 *
-	 *        +=================+====+----+
-	 *        #   Client area,  | ri # le |
-	 *        #    invisible    | gh # ft |
-	 *        #                 | t  #    |
-	 *        +-----------------+----+----+
-	 *        #  bottom border  | br # bl |
-	 *        +=================+====+----+
-	 *        |   top border    | tr | tl |
-	 *        +-----------------+----+----+
-	 *
-	 * The area enclosed in "=" and "#" is directly visible. The
-	 * "surplus" parts (like left, bottom left, ...) will be wrapped
-	 * around!
-	 *
-	 * I could have drawn everything at it's final position, but I
-	 * wanted my drawing algorithms to be simple and independent of this
-	 * weird layout.
-	 */
-	XCopyArea(dpy, unshifted, shifted, gc,         /* top left corner */
-	          0, 0,                                       /* src x, y */
-	          c->bw, c->bw,                               /* src w, h */
-	          c->w + c->bw, c->h + c->bw);                /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,       /* top and top right */
-	          c->bw, 0,                                   /* src x, y */
-	          c->w + c->bw, c->bw,                        /* src w, h */
-	          0, c->h + c->bw);                           /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,    /* left and bottom left */
-	          0, c->bw,                                   /* src x, y */
-	          c->bw, c->h + c->bw,                        /* src w, h */
-	          c->w + c->bw, 0);                           /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,  /* right and bottom right */
-	          c->w + c->bw, c->bw,                        /* src x, y */
-	          c->bw, c->h + c->bw,                        /* src w, h */
-	          c->w, 0);                                   /* dst x, y */
-	XCopyArea(dpy, unshifted, shifted, gc,                  /* bottom */
-	          c->bw, c->h + c->bw,                        /* src x, y */
-	          c->w, c->bw,                                /* src w, h */
-	          0, c->h);                                   /* dst x, y */
-
-	XSetWindowBorderPixmap(dpy, c->win, shifted);
-
-	XFreePixmap(dpy, shifted);
-	XFreePixmap(dpy, unshifted);
-	XFreeGC(dpy, gc);
+	XSetWindowBorder(dpy, c->win, col);
 }
 
 void
@@ -2186,18 +1896,6 @@ setmfact(const Arg *arg) {
 }
 
 void
-setshape(Client *c) {
-	XRectangle r;
-
-	r.x = -bevelborderpx;
-	r.y = -(bevelborderpx + titlepx);
-	r.width = c->w + 2*bevelborderpx;
-	r.height = c->h + 2*bevelborderpx + titlepx;
-	XShapeCombineRectangles(dpy, c->win, ShapeBounding, 0, 0,
-	                        &r, 1, ShapeSet, Unsorted);
-}
-
-void
 setup(void) {
 	XSetWindowAttributes wa;
 	int dummy1, dummy2, dummy3;
@@ -2208,24 +1906,18 @@ setup(void) {
 	/* init const variables from config.h */
 	gappx = uselessgap;
 	screenbarriers = barriers;
-	bevelborderpx = borders[0] + borders[1] + borders[2];
 
 	/* init screen */
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
 	initfont(fontbar, &fibar);
-	initfont(fonttitle, &fititle);
 	sw = DisplayWidth(dpy, screen);
 	sh = DisplayHeight(dpy, screen);
 	bh = fibar.height + 3;
-	titlepx = fititle.height + 2 + 2*beveltitle;
 	if(!XQueryExtension(dpy, "XFIXES", &dummy1, &dummy2, &dummy3)) {
 		fprintf(stderr, "dwm: No XFIXES extension available,"
 		                "disabling pointer barriers.\n");
 		screenbarriers = False;
-	}
-	if(!XShapeQueryExtension(dpy, &dummy1, &dummy2)) {
-		fprintf(stderr, "dwm: No SHAPE extension available, I'll look crappy.\n");
 	}
 	updategeom();
 	/* init atoms */
@@ -2360,10 +2052,10 @@ slinp(Monitor *m) {
 				xoffrel = thisslot / (float)slots;
 
 				resize(c,
-				       m->wx + xoffrel * m->ww - titlepx,
+				       m->wx + xoffrel * m->ww,
 				       m->wy,
-				       1.0 / slots * m->ww - 2 * bevelborderpx,
-				       selmon->mfact * m->wh - 2 * bevelborderpx - titlepx,
+				       1.0 / slots * m->ww - 2 * c->bw,
+				       selmon->mfact * m->wh - 2 * c->bw,
 				       False);
 			}
 		}
@@ -2386,10 +2078,10 @@ slinp(Monitor *m) {
 		if(strcmp(class, "Showpdf") != 0)
 		{
 			resize(c,
-			       m->wx + (i / (float)slaves) * m->ww - titlepx,
+			       m->wx + (i / (float)slaves) * m->ww,
 			       m->wy + selmon->mfact * m->wh,
-			       1.0 / slaves * m->ww - 2 * bevelborderpx,
-			       m->wh - selmon->mfact * m->wh - 2 * bevelborderpx - titlepx,
+			       1.0 / slaves * m->ww - 2 * c->bw,
+			       m->wh - selmon->mfact * m->wh - 2 * c->bw,
 			       False);
 			i++;
 		}
@@ -2489,20 +2181,20 @@ tile(Monitor *m) {
 		if(i < actual_nmaster) {
 			h = (m->wh - my) / (MIN(n, actual_nmaster) - i);
 			resize(c,
-			       m->wx + gappx - titlepx,
+			       m->wx + gappx,
 			       m->wy + my + gappx,
-			       mw - (2*bevelborderpx) - (2*gappx),
-			       h - (2*bevelborderpx + titlepx) - (2*gappx),
+			       mw - (2*c->bw) - (2*gappx),
+			       h - (2*c->bw) - (2*gappx),
 			       False);
 			my += HEIGHT(c) + (2*gappx);
 		}
 		else {
 			h = (m->wh - ty) / (n - i);
 			resize(c,
-			       m->wx + mw + gappx - titlepx,
+			       m->wx + mw + gappx,
 			       m->wy + ty + gappx,
-			       m->ww - mw - (2*bevelborderpx) - (2*gappx),
-			       h - (2*bevelborderpx + titlepx) - (2*gappx),
+			       m->ww - mw - (2*c->bw) - (2*gappx),
+			       h - (2*c->bw) - (2*gappx),
 			       False);
 			ty += HEIGHT(c) + (2*gappx);
 		}
@@ -2901,7 +2593,6 @@ xerror(Display *dpy, XErrorEvent *ee) {
 	|| (ee->request_code == X_PolyText8 && ee->error_code == BadDrawable)
 	|| (ee->request_code == X_PolyFillRectangle && ee->error_code == BadDrawable)
 	|| (ee->request_code == X_PolySegment && ee->error_code == BadDrawable)
-	|| (ee->request_code == X_ChangeWindowAttributes && ee->error_code == BadMatch)
 	|| (ee->request_code == X_ConfigureWindow && ee->error_code == BadMatch)
 	|| (ee->request_code == X_GrabButton && ee->error_code == BadAccess)
 	|| (ee->request_code == X_GrabKey && ee->error_code == BadAccess)
