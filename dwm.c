@@ -255,6 +255,7 @@ static void shiftview(const Arg *arg);
 static void showhide(Client *c);
 static void sigchld(int unused);
 static void slinp(Monitor *);
+static void sortmonitorsbyx(void);
 static void spawn(const Arg *arg);
 static void swapfocus();
 static void tag(const Arg *arg);
@@ -2154,6 +2155,50 @@ slinp(Monitor *m) {
 }
 
 void
+sortmonitorsbyx(void) {
+	Monitor *a, *b, *minm = NULL;
+	int n, minx, floorx;
+
+	/* Force un-assign all monitors. */
+	for(a = mons; a; a = a->next)
+		a->num = -1;
+
+	floorx = -1;
+	for(n = 0, a = mons; a; a = a->next, n++) {
+		/* Find monitor with the minimum X coordinate but this
+		 * coordinate must be greater than the last coordinate we saw
+		 * ("floorx"). And the monitor has still to be unassigned. */
+		minx = -1;
+		for(b = mons; b; b = b->next) {
+			if(b->mx > floorx && b->num == -1 && (minx == -1 || b->mx < minx)) {
+				minx = b->mx;
+				minm = b;
+			}
+		}
+
+		/* Now force-assign the new monitor number. */
+		if(minm == NULL) {
+			fprintf(stderr, "dwm/sortx: crap, found no candidate, BUG!\n");
+			/* This should NOT happen. If it does, it is a BUG! However,
+			 * I don't want dwm to crash. Thus, assign something that's
+			 * a little bit meaningful and bail out. */
+			for(n = 0, a = mons; a; a = a->next, n++)
+				a->num = n;
+			/* XXX remove this. I just want to make sure that I notice
+			 * that a bug occured. */
+			gappx = 30;
+			return;
+
+		}
+		minm->num = n;
+
+		/* For the next iteration, we're only interested in monitors
+		 * with an X offset larger than what we just saw. */
+		floorx = minx;
+	}
+}
+
+void
 spawn(const Arg *arg) {
 	if(fork() == 0) {
 		if (fork() == 0) {
@@ -2439,7 +2484,7 @@ updategeom(void) {
 				    || unique[i].width != m->mw || unique[i].height != m->mh))
 				{
 					dirty = True;
-					m->num = i;
+					m->num = i;  /* might get reassigned by sortmonitorsbyx() */
 					m->mx = m->wx = unique[i].x_org;
 					m->my = m->wy = unique[i].y_org;
 					m->mw = m->ww = unique[i].width;
@@ -2484,6 +2529,7 @@ updategeom(void) {
 		selmon = wintomon(root);
 	}
 
+	sortmonitorsbyx();
 	createallbarriers();
 
 	return dirty;
