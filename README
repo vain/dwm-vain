@@ -76,7 +76,6 @@ This fork is based on dwm-6.1. Major changes since then:
 - A separator line below/above the status bar
 - drawbar:
 	- Only show occupied tags (allows you to use *A LOT* of tags)
-	- Additional colors for info areas (taglist and status)
 - tile layout:
 	- Made "nmaster" dynamic, so it's actually more like a grid layout:
 	  Try to have as many clients in the master column as there are in

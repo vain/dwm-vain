@@ -109,10 +109,8 @@ typedef struct {
 	unsigned long norm[ColLast];
 	unsigned long sel[ColLast];
 	unsigned long urg[ColLast];
-	unsigned long infonorm[ColLast];
-	unsigned long infosel[ColLast];
 	unsigned long linecolor;
-	unsigned long baremptycolor;
+	unsigned long bartext[ColLast];
 } ColorInfo;
 
 typedef struct {
@@ -866,7 +864,7 @@ drawbar(Monitor *m) {
 	dc.gc = &bc.gc;
 	dc.drawable = &bc.drawable;
 
-	XSetForeground(dpy, *dc.gc, ci.baremptycolor);
+	XSetForeground(dpy, *dc.gc, ci.norm[ColBG]);
 	XFillRectangle(dpy, *dc.drawable, *dc.gc, 0, 0, m->ww, bh);
 
 	for(c = m->clients; c; c = c->next) {
@@ -880,14 +878,17 @@ drawbar(Monitor *m) {
 		if (!((occ | m->tagset[m->seltags]) & 1 << i) || hiddentags & 1 << i)
 			continue;
 		dc.w = TEXTW(tags[i], fibar);
-		col = m->tagset[m->seltags] & 1 << i ? ci.infosel : ci.infonorm;
-		drawtext(tags[i], col, urg & 1 << i, False);
-		drawsquare(m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
-		           occ & 1 << i, urg & 1 << i, col);
+		if(urg & 1 << i)
+			col = ci.urg;
+		else
+			col = m->tagset[m->seltags] & 1 << i ? ci.sel : ci.norm;
+		drawtext(tags[i], col, False, False);
+		if(m == selmon && selmon->sel && selmon->sel->tags & 1 << i)
+			drawsquare(False, True, False, col);
 		dc.x += dc.w;
 	}
 	dc.w = blw = TEXTW(m->ltsymbol, fibar);
-	drawtext(m->ltsymbol, ci.infonorm, False, False);
+	drawtext(m->ltsymbol, ci.bartext, False, False);
 	dc.x += dc.w;
 	x = dc.x;
 
@@ -898,7 +899,7 @@ drawbar(Monitor *m) {
 			dc.x = x;
 			dc.w = m->ww - x;
 		}
-		drawtext(stext, ci.infonorm, False, False);
+		drawtext(stext, ci.bartext, False, False);
 	}
 	else
 		dc.x = m->ww;
@@ -1993,12 +1994,9 @@ setup(void) {
 	ci.sel[ColFG] = getcolor(selfgcolor);
 	ci.urg[ColBG] = getcolor(urgbgcolor);
 	ci.urg[ColFG] = getcolor(urgfgcolor);
-	ci.infonorm[ColBG] = getcolor(infonormbgcolor);
-	ci.infonorm[ColFG] = getcolor(infonormfgcolor);
-	ci.infosel[ColBG] = getcolor(infoselbgcolor);
-	ci.infosel[ColFG] = getcolor(infoselfgcolor);
+	ci.bartext[ColBG] = getcolor(bartextbgcolor);
+	ci.bartext[ColFG] = getcolor(bartextfgcolor);
 	ci.linecolor = getcolor(linecolor);
-	ci.baremptycolor = getcolor(baremptycolor);
 	bc.drawable = XCreatePixmap(dpy, root, DisplayWidth(dpy, screen), bh, DefaultDepth(dpy, screen));
 	bc.gc = XCreateGC(dpy, root, 0, NULL);
 	XSetLineAttributes(dpy, bc.gc, 1, LineSolid, CapButt, JoinMiter);
