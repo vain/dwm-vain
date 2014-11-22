@@ -74,9 +74,9 @@ This fork is based on dwm-6.1. Major changes since then:
 	- shiftview: View adjacent tags
 	- tagrel: Send a client to adjacent tags
 - Pointer barriers around the working area
-- A separator line below/above the status bar
 - drawbar:
 	- Only show occupied tags (allows you to use *A LOT* of tags)
+	- Additional separator lines
 - tile layout:
 	- Made "nmaster" dynamic, so it's actually more like a grid layout:
 	  Try to have as many clients in the master column as there are in

@@ -885,6 +885,10 @@ drawbar(Monitor *m) {
 		drawtext(tags[i], col, False, False);
 		if(m == selmon && selmon->sel && selmon->sel->tags & 1 << i)
 			drawtriangle(False, True, False, col);
+		XSetForeground(dpy, *dc.gc, ci.linecolor);
+		XDrawLine(dpy, *dc.drawable, *dc.gc,
+		          dc.x + dc.w - 1, dc.y,
+		          dc.x + dc.w - 1, bh);
 		dc.x += dc.w;
 	}
 	dc.w = blw = TEXTW(m->ltsymbol, fibar);
