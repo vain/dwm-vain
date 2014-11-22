@@ -201,8 +201,8 @@ static void die(const char *errstr, ...);
 static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
-static void drawsquare(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]);
 static void drawtext(const char *text, unsigned long col[ColLast], Bool invert, Bool centered);
+static void drawtriangle(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -884,7 +884,7 @@ drawbar(Monitor *m) {
 			col = m->tagset[m->seltags] & 1 << i ? ci.sel : ci.norm;
 		drawtext(tags[i], col, False, False);
 		if(m == selmon && selmon->sel && selmon->sel->tags & 1 << i)
-			drawsquare(False, True, False, col);
+			drawtriangle(False, True, False, col);
 		dc.x += dc.w;
 	}
 	dc.w = blw = TEXTW(m->ltsymbol, fibar);
@@ -929,7 +929,7 @@ drawbar(Monitor *m) {
 			if(i == n - 1)
 				dc.w = oldw - (n - 1) * dc.w;
 			drawtext(c->name, col, False, centertitle);
-			drawsquare(c->isfixed, c->isfloating, False, col);
+			drawtriangle(c->isfixed, c->isfloating, False, col);
 			if(i != n - 1) {
 				XSetForeground(dpy, *dc.gc, ci.linecolor);
 				XDrawLine(dpy, *dc.drawable, *dc.gc,
@@ -971,18 +971,6 @@ drawbars(void) {
 }
 
 void
-drawsquare(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]) {
-	int x;
-
-	XSetForeground(dpy, *dc.gc, col[invert ? ColBG : ColFG]);
-	x = (dc.fi->ascent + dc.fi->descent + 2) / 4;
-	if(filled)
-		XFillRectangle(dpy, *dc.drawable, *dc.gc, dc.x+1, dc.y+1, x+1, x+1);
-	else if(empty)
-		XDrawRectangle(dpy, *dc.drawable, *dc.gc, dc.x+1, dc.y+1, x, x);
-}
-
-void
 drawtext(const char *text, unsigned long col[ColLast], Bool invert, Bool centered) {
 	char buf[256];
 	int i, x, y, h, len, olen;
@@ -1009,6 +997,25 @@ drawtext(const char *text, unsigned long col[ColLast], Bool invert, Bool centere
 		XmbDrawString(dpy, *dc.drawable, dc.fi->set, *dc.gc, x, y, buf, len);
 	else
 		XDrawString(dpy, *dc.drawable, *dc.gc, x, y, buf, len);
+}
+
+void
+drawtriangle(Bool filled, Bool empty, Bool invert, unsigned long col[ColLast]) {
+	int x;
+
+	XSetForeground(dpy, *dc.gc, col[invert ? ColBG : ColFG]);
+	x = (dc.fi->ascent + dc.fi->descent + 2) / 4;
+	if(filled) {
+		XPoint v[3];
+		v[0].x = dc.x+1; v[0].y = dc.y+1;
+		v[1].x = dc.x+1; v[1].y = dc.y+x+2;
+		v[2].x = dc.x+x+2; v[2].y = dc.y+1;
+		XFillPolygon(dpy, *dc.drawable, *dc.gc, v, 3, Complex, CoordModeOrigin);
+	}
+	else if(empty) {
+		XDrawLine(dpy, *dc.drawable, *dc.gc, dc.x+1, dc.y+1, dc.x+x+1, dc.y+1);
+		XDrawLine(dpy, *dc.drawable, *dc.gc, dc.x+1, dc.y+1, dc.x+1, dc.y+x+1);
+	}
 }
 
 void

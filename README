@@ -58,6 +58,7 @@ This fork is based on dwm-6.1. Major changes since then:
 
 - Builtin function to re-execute dwm
 - Included patches:
+	- drawtriangle
 	- movestack
 	- swapfocus
 	- togglefullscreen
