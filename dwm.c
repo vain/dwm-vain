@@ -857,7 +857,7 @@ dirtomon(int dir) {
 void
 drawbar(Monitor *m) {
 	int x;
-	unsigned int i, occ = 0, urg = 0;
+	unsigned int i, occ = 0, urg = 0, n = 0, oldw;
 	unsigned long *col;
 	Client *c;
 
@@ -899,6 +899,55 @@ drawbar(Monitor *m) {
 			dc.w = m->ww - x;
 		}
 		drawtext(stext, ci.infonorm, False, False);
+	}
+	else
+		dc.x = m->ww;
+
+	if((dc.w = dc.x - x) > bh) {
+		dc.x = x;
+
+		/* Count clients on current tags */
+		for(c = m->clients; c; c = c->next) {
+			if(!ISVISIBLE(c))
+				continue;
+			n++;
+		}
+		oldw = dc.w;
+		if(n > 0)
+			dc.w /= n;
+		i = 0;
+
+		/* List visible clients with separators in between */
+		for(c = m->clients; c; c = c->next) {
+			if(!ISVISIBLE(c))
+				continue;
+			if(!c->isurgent)
+				col = m == selmon && m->sel == c ? ci.sel : ci.norm;
+			else
+				col = ci.urg;
+			if(i == n - 1)
+				dc.w = oldw - (n - 1) * dc.w;
+			drawtext(c->name, col, False, centertitle);
+			drawsquare(c->isfixed, c->isfloating, False, col);
+			if(i != n - 1) {
+				XSetForeground(dpy, *dc.gc, ci.linecolor);
+				XDrawLine(dpy, *dc.drawable, *dc.gc,
+				          dc.x + dc.w - 1, dc.y,
+				          dc.x + dc.w - 1, bh);
+			}
+			dc.x += dc.w;
+			i++;
+		}
+
+		/* Draw first and last separator (outside of the actual tasklist) */
+		XSetForeground(dpy, *dc.gc, ci.linecolor);
+		XDrawLine(dpy, *dc.drawable, *dc.gc,
+		          x - 1, dc.y,
+		          x - 1, bh);
+		XSetForeground(dpy, *dc.gc, ci.linecolor);
+		XDrawLine(dpy, *dc.drawable, *dc.gc,
+		          x + oldw, dc.y,
+		          x + oldw, bh);
 	}
 
 	/* Draw border. */

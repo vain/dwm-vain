@@ -19,6 +19,7 @@ static const unsigned int snap      = 32;       /* snap pixel */
 static const int uselessgap         = 5;        /* useless gap */
 static const Bool showbar           = True;     /* False means no bar */
 static const Bool topbar            = True;     /* False means bottom bar */
+static const Bool centertitle       = False;
 static const Bool barriers          = False;    /* Put pointer barriers around the WA */
 
 /* tagging */
