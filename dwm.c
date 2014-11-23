@@ -295,7 +295,7 @@ static int gappx;
 static int screen;
 static int screenbarriers;
 static int sw, sh;           /* X display screen geometry width, height */
-static int bh, blw = 0;      /* bar geometry */
+static int bh;               /* bar geometry */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
@@ -891,7 +891,7 @@ drawbar(Monitor *m) {
 		          dc.x + dc.w - 1, bh);
 		dc.x += dc.w;
 	}
-	dc.w = blw = TEXTW(m->ltsymbol, fibar);
+	dc.w = TEXTW(m->ltsymbol, fibar);
 	drawtext(m->ltsymbol, ci.bartext, False, False);
 	dc.x += dc.w;
 	x = dc.x;
