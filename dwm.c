@@ -91,9 +91,10 @@ struct Client {
 	int oldx, oldy, oldw, oldh;
 	int basew, baseh, incw, inch, maxw, maxh, minw, minh;
 	int bw, oldbw;
-	unsigned int tags;
+	int smonn;
+	unsigned int tags, stags;
 	Bool isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen,
-	     sizehints;
+	     sizehints, wassaved;
 	Client *next;
 	Client *snext;
 	Monitor *mon;
@@ -230,6 +231,8 @@ static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static void movestack(const Arg *arg);
 static Client *nexttiled(Client *c);
+static void placementrestore(const Arg *arg);
+static void placementsave(const Arg *arg);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
@@ -297,6 +300,8 @@ static int screen;
 static int screenbarriers;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar geometry */
+static unsigned int *savedmontags = NULL;
+static int savedmontagsmaxnum = 0;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
@@ -1604,6 +1609,102 @@ Client *
 nexttiled(Client *c) {
 	for(; c && (c->isfloating || !ISVISIBLE(c)); c = c->next);
 	return c;
+}
+
+void
+placementrestore(const Arg *arg) {
+	Client *c;
+	Monitor *m;
+	Client **clist = NULL;
+	int n = 0, i = 0;
+
+	/* Copy client pointers from the linked lists to a stable array of
+	 * pointers. The linked lists will get modified later. */
+	for(m = mons; m; m = m->next)
+		for(c = m->clients; c; c = c->next)
+			n++;
+
+	clist = (Client **)calloc(n, sizeof(Client *));
+
+	for(m = mons; m; m = m->next) {
+		for(c = m->clients; c; c = c->next) {
+			clist[i] = c;
+			i++;
+		}
+	}
+
+	/* Restore tags and move the client to the old monitor. Note that we
+	 * traverse the array from end to front. This will retain the order
+	 * in the linked lists. */
+	for(i = n - 1; i >= 0; i--) {
+		if(!clist[i]->wassaved)
+			continue;
+
+		unfocus(clist[i], True);
+		detach(clist[i]);
+		detachstack(clist[i]);
+		for(m = mons; m; m = m->next)
+			if(m->num == clist[i]->smonn)
+				clist[i]->mon = m;
+		clist[i]->tags = clist[i]->stags;
+		attach(clist[i]);
+		attachstack(clist[i]);
+	}
+
+	/* Restore monitor tags. */
+	for(m = mons; m; m = m->next) {
+		if(m->num > savedmontagsmaxnum)
+			continue;
+
+		m->tagset[0] = savedmontags[3 * m->num    ];
+		m->tagset[1] = savedmontags[3 * m->num + 1];
+		m->seltags   = savedmontags[3 * m->num + 2];
+	}
+
+	focus(NULL);
+	arrange(NULL);
+
+	free(clist);
+}
+
+void
+placementsave(const Arg *arg) {
+	Client *c;
+	Monitor *m;
+
+	/* Save monitor number and tags of each client. This allows for
+	 * restoration in placementrestore(). */
+	for(m = mons; m; m = m->next) {
+		for(c = m->clients; c; c = c->next) {
+			c->smonn = c->mon->num;
+			c->stags = c->tags;
+			c->wassaved = True;
+		}
+	}
+
+	/* Save tags of monitors: Create an array that can be indexed by
+	 * m->num. */
+	if(savedmontags != NULL)
+		free(savedmontags);
+
+	savedmontagsmaxnum = 0;
+	for(m = mons; m; m = m->next) {
+		savedmontagsmaxnum = m->num > savedmontagsmaxnum ? m->num : savedmontagsmaxnum;
+	}
+
+	savedmontags = calloc(3 * (savedmontagsmaxnum + 1), sizeof(unsigned int));
+	if(savedmontags == NULL)
+		die("No memory left for savedmontags");
+
+	for(m = mons; m; m = m->next) {
+		savedmontags[3 * m->num    ] = m->tagset[0];
+		savedmontags[3 * m->num + 1] = m->tagset[1];
+		savedmontags[3 * m->num + 2] = m->seltags;
+	}
+
+	/* Just a quick hint. */
+	strcpy(stext, "placement saved in memory");
+	drawbar(selmon);
 }
 
 void
