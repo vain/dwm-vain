@@ -141,6 +141,11 @@ typedef struct {
 	void (*arrange)(Monitor *);
 } Layout;
 
+typedef struct {
+	int width, height;
+	int x_org, y_org;
+} VirtualMonitor;
+
 struct Monitor {
 	char ltsymbol[16];
 	float mfact;
@@ -253,6 +258,7 @@ static void setfullscreen(Client *c, Bool fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setup(void);
+static void setvmonconfig(const Arg *arg);
 static void shiftmask(unsigned int *m, int dir);
 static void shiftview(const Arg *arg);
 static void showhide(Client *c);
@@ -285,6 +291,7 @@ static void updatetitle(Client *c);
 static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
+static void vmonoverride(XineramaScreenInfo **si, int *nmons);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
@@ -302,6 +309,7 @@ static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar geometry */
 static unsigned int *savedmontags = NULL;
 static int savedmontagsmaxnum = 0;
+static int vmonconfigactive = 0;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
@@ -2133,6 +2141,24 @@ setup(void) {
 }
 
 void
+setvmonconfig(const Arg *arg) {
+	Monitor *m;
+
+	vmonconfigactive = arg->i;
+	updategeom();
+
+	/* XXX copied from configurenotify, maybe refactor */
+	if(bc.drawable != 0)
+		XFreePixmap(dpy, bc.drawable);
+	bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
+	updatebars();
+	for(m = mons; m; m = m->next)
+		XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
+	focus(NULL);
+	arrange(NULL);
+}
+
+void
 shiftmask(unsigned int *m, int dir) {
 	if(!m)
 		return;
@@ -2570,6 +2596,7 @@ updategeom(void) {
 			if(isuniquegeom(unique, j, &info[i]))
 				memcpy(&unique[j++], &info[i], sizeof(XineramaScreenInfo));
 		XFree(info);
+		vmonoverride(&unique, &j);
 		nn = j;
 		if(n <= nn) {
 			for(i = 0; i < (nn - n); i++) { /* new monitors available */
@@ -2758,6 +2785,30 @@ view(const Arg *arg) {
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
 	focus(NULL);
 	arrange(selmon);
+}
+
+void
+vmonoverride(XineramaScreenInfo **si, int *nmons) {
+	int i;
+
+	for(i = 0; vmonconfigs[vmonconfigactive][i].width != 0 &&
+	           vmonconfigs[vmonconfigactive][i].height != 0;
+	    i++);
+	if(i == 0)
+		return;
+	*nmons = i;
+
+	free(*si);
+	*si = (XineramaScreenInfo *)malloc(sizeof(XineramaScreenInfo) * *nmons);
+	if(*si == NULL)
+		die("fatal: could not malloc() %u bytes\n", sizeof(XineramaScreenInfo) * *nmons);
+
+	for(i = 0; i < *nmons; i++) {
+		(*si)[i].width = vmonconfigs[vmonconfigactive][i].width;
+		(*si)[i].height = vmonconfigs[vmonconfigactive][i].height;
+		(*si)[i].x_org = vmonconfigs[vmonconfigactive][i].x_org;
+		(*si)[i].y_org = vmonconfigs[vmonconfigactive][i].y_org;
+	}
 }
 
 Client *
