@@ -251,6 +251,7 @@ static void run(void);
 static void scan(void);
 static Bool sendevent(Client *c, Atom proto);
 static void sendmon(Client *c, Monitor *m);
+static void sendselmon(const Arg *arg);
 static void setborder(Client *c, enum BorderType state);
 static void setclientstate(Client *c, long state);
 static void setfocus(Client *c);
@@ -1931,6 +1932,30 @@ sendmon(Client *c, Monitor *m) {
 }
 
 void
+sendselmon(const Arg *arg) {
+	Client *c;
+	Monitor *m;
+
+	for(m = mons; m; m = m->next) {
+		if(m == selmon)
+			continue;
+		while(m->clients) {
+			c = m->clients;
+			m->clients = c->next;
+			detachstack(c);
+			c->mon = selmon;
+			attach(c);
+			attachstack(c);
+		}
+	}
+
+	if(arg != NULL) {
+		focus(NULL);
+		arrange(NULL);
+	}
+}
+
+void
 setborder(Client *c, enum BorderType state) {
 	unsigned long col = 0;
 
@@ -2583,8 +2608,7 @@ updategeom(void) {
 
 	if(XineramaIsActive(dpy)) {
 		int i, j, n, nn;
-		Client *c;
-		Monitor *m;
+		Monitor *m, *mons2;
 		XineramaScreenInfo *info = XineramaQueryScreens(dpy, &nn);
 		XineramaScreenInfo *unique = NULL;
 
@@ -2597,49 +2621,32 @@ updategeom(void) {
 				memcpy(&unique[j++], &info[i], sizeof(XineramaScreenInfo));
 		XFree(info);
 		vmonoverride(&unique, &j);
-		nn = j;
-		if(n <= nn) {
-			for(i = 0; i < (nn - n); i++) { /* new monitors available */
-				for(m = mons; m && m->next; m = m->next);
-				if(m)
-					m->next = createmon();
-				else
-					mons = createmon();
-			}
-			for(i = 0, m = mons; i < nn && m; m = m->next, i++)
-				if(i >= n
-				|| (unique[i].x_org != m->mx || unique[i].y_org != m->my
-				    || unique[i].width != m->mw || unique[i].height != m->mh))
-				{
-					dirty = True;
-					m->num = i;  /* might get reassigned by sortmonitorsbyx() */
-					m->mx = m->wx = unique[i].x_org;
-					m->my = m->wy = unique[i].y_org;
-					m->mw = m->ww = unique[i].width;
-					m->mh = m->wh = unique[i].height;
-					m->lmx = m->wx + (int)(0.5 * m->ww);
-					m->lmy = m->wy + (int)(0.5 * m->wh);
-					updatebarpos(m);
-				}
-		}
-		else { /* less monitors available nn < n */
-			for(i = nn; i < n; i++) {
-				for(m = mons; m && m->next; m = m->next);
-				while(m->clients) {
-					dirty = True;
-					c = m->clients;
-					m->clients = c->next;
-					detachstack(c);
-					c->mon = mons;
-					attach(c);
-					attachstack(c);
-				}
-				if(m == selmon)
-					selmon = mons;
-				cleanupmon(m);
-			}
+
+		/* Move all clients to newly created mons2, kill old monitors. */
+		dirty = True;
+		selmon = mons2 = createmon();
+		sendselmon(NULL);
+		while(mons)
+			cleanupmon(mons);
+
+		/* Set monitor geoms and create additional monitors. */
+		for(i = 0, m = mons2; i < j; i++) {
+			m->num = i;  /* might get reassigned by sortmonitorsbyx() */
+			m->mx = m->wx = unique[i].x_org;
+			m->my = m->wy = unique[i].y_org;
+			m->mw = m->ww = unique[i].width;
+			m->mh = m->wh = unique[i].height;
+			m->lmx = m->wx + (int)(0.5 * m->ww);
+			m->lmy = m->wy + (int)(0.5 * m->wh);
+			updatebarpos(m);
+
+			if(i != j - 1)
+				m->next = createmon();
+			m = m->next;
 		}
 		free(unique);
+
+		mons = mons2;
 	}
 	else
 	{
