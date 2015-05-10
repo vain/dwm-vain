@@ -2129,8 +2129,6 @@ setup(void) {
 		                "disabling pointer barriers.\n");
 		screenbarriers = False;
 	}
-	memset(vmonconfig, 0, sizeof(vmonconfig));
-	updategeom();
 	/* init atoms */
 	dwmatom[DWMVirtualMonitors] = XInternAtom(dpy, "DWM_VIRTUAL_MONITORS", False);
 	wmatom[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
@@ -2145,6 +2143,9 @@ setup(void) {
 	netatom[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
 	netatom[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
 	netatom[NetClientList] = XInternAtom(dpy, "_NET_CLIENT_LIST", False);
+	/* init vmonconfig */
+	updatevmonconfig();
+	updategeom();
 	/* init cursors */
 	cursor[CurNormal] = XCreateFontCursor(dpy, XC_left_ptr);
 	cursor[CurResize] = XCreateFontCursor(dpy, XC_sizing);
