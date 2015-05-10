@@ -49,13 +49,6 @@ static const Layout layouts[] = {
 	{ "[M]",      monocle },
 };
 
-/* Virtual monitor definitions that override what Xinerama tells us. */
-#define VMON_N_CONFIGS 2
-static const VirtualMonitor vmonconfigs[VMON_N_CONFIGS][32] = {
-	{ { 0, 0, 0, 0 }, },  /* autodetect monitors (try xinerama) */
-	{ { 1280, 1024, 0, 0 }, { 640, 1080, 1280, 0 }, },
-};
-
 /* key definitions */
 #define MODKEY Mod1Mask
 #define TAGKEYS(KEY,TAG) \

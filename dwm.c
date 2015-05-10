@@ -64,6 +64,7 @@ enum { NetSupported, NetWMName, NetWMState,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
        NetWMWindowTypeDialog, NetClientList, NetLast };     /* EWMH atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
+enum { DWMVirtualMonitors, DWMLast }; /* atoms specific to dwm */
 enum { ClkClientWin, ClkRootWin, ClkLast };             /* clicks */
 enum BorderType { StateNormal, StateFocused, StateUrgent, StateAuto };
 
@@ -142,7 +143,7 @@ typedef struct {
 } Layout;
 
 typedef struct {
-	int width, height;
+	unsigned int width, height;
 	int x_org, y_org;
 } VirtualMonitor;
 
@@ -259,7 +260,6 @@ static void setfullscreen(Client *c, Bool fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setup(void);
-static void setvmonconfig(const Arg *arg);
 static void shiftmask(unsigned int *m, int dir);
 static void shiftview(const Arg *arg);
 static void showhide(Client *c);
@@ -289,6 +289,7 @@ static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
 static void updatestatus(void);
 static void updatetitle(Client *c);
+static void updatevmonconfig(void);
 static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
@@ -310,7 +311,7 @@ static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar geometry */
 static unsigned int *savedmontags = NULL;
 static int savedmontagsmaxnum = 0;
-static int vmonconfigactive = 0;
+static VirtualMonitor vmonconfig[32];
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
@@ -329,7 +330,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[PropertyNotify] = propertynotify,
 	[UnmapNotify] = unmapnotify
 };
-static Atom wmatom[WMLast], netatom[NetLast];
+static Atom dwmatom[DWMLast], wmatom[WMLast], netatom[NetLast];
 static BarContext bc;
 static Bool running = True;
 static Bool dorestart = False;
@@ -1730,8 +1731,12 @@ propertynotify(XEvent *e) {
 	Window trans;
 	XPropertyEvent *ev = &e->xproperty;
 
-	if((ev->window == root) && (ev->atom == XA_WM_NAME))
-		updatestatus();
+	if((ev->window == root)) {
+		if(ev->atom == XA_WM_NAME)
+			updatestatus();
+		else if(ev->atom == dwmatom[DWMVirtualMonitors])
+			updatevmonconfig();
+	}
 	else if(ev->state == PropertyDelete)
 		return; /* ignore */
 	else if((c = wintoclient(ev->window))) {
@@ -2115,8 +2120,10 @@ setup(void) {
 		                "disabling pointer barriers.\n");
 		screenbarriers = False;
 	}
+	memset(vmonconfig, 0, sizeof(vmonconfig));
 	updategeom();
 	/* init atoms */
+	dwmatom[DWMVirtualMonitors] = XInternAtom(dpy, "DWM_VIRTUAL_MONITORS", False);
 	wmatom[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
 	wmatom[WMDelete] = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
 	wmatom[WMState] = XInternAtom(dpy, "WM_STATE", False);
@@ -2163,24 +2170,6 @@ setup(void) {
 	XSelectInput(dpy, root, wa.event_mask);
 	grabkeys();
 	focus(NULL);
-}
-
-void
-setvmonconfig(const Arg *arg) {
-	Monitor *m;
-
-	vmonconfigactive = arg->i;
-	updategeom();
-
-	/* XXX copied from configurenotify, maybe refactor */
-	if(bc.drawable != 0)
-		XFreePixmap(dpy, bc.drawable);
-	bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
-	updatebars();
-	for(m = mons; m; m = m->next)
-		XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
-	focus(NULL);
-	arrange(NULL);
 }
 
 void
@@ -2744,6 +2733,56 @@ updatetitle(Client *c) {
 }
 
 void
+updatevmonconfig(void) {
+	Monitor *m;
+	char buf[512] = "";
+	char *from, *to;
+	size_t i = 0, maxi = sizeof(vmonconfig) / sizeof(VirtualMonitor);
+	int bm;
+
+	memset(vmonconfig, 0, sizeof(vmonconfig));
+
+	if(gettextprop(root, dwmatom[DWMVirtualMonitors], buf, sizeof(buf))) {
+		fprintf(stderr, "dwm: Read vmonconfig '%s'\n", buf);
+
+		for(from = buf; *from != 0 && i < maxi; from = ++to, i++) {
+			to = strchr(from, ';');
+			if(to == NULL) {
+				fprintf(stderr, "dwm: Invalid vmonconfig\n");
+				memset(vmonconfig, 0, sizeof(vmonconfig));
+				goto updatescreen;
+			}
+			*to = 0;
+			bm = XParseGeometry(from, &vmonconfig[i].x_org,
+			                          &vmonconfig[i].y_org,
+			                          &vmonconfig[i].width,
+			                          &vmonconfig[i].height);
+			if(!(bm & XValue && bm & YValue && bm & WidthValue && bm & HeightValue) ||
+			   bm & XNegative || bm & YNegative) {
+				fprintf(stderr, "dwm: Invalid vmonconfig (says xlib)\n");
+				memset(vmonconfig, 0, sizeof(vmonconfig));
+				goto updatescreen;
+			}
+		}
+	}
+	else
+		fprintf(stderr, "dwm: vmonconfig has been removed\n");
+
+updatescreen:
+	updategeom();
+
+	/* XXX copied from configurenotify, maybe refactor */
+	if(bc.drawable != 0)
+		XFreePixmap(dpy, bc.drawable);
+	bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
+	updatebars();
+	for(m = mons; m; m = m->next)
+		XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
+	focus(NULL);
+	arrange(NULL);
+}
+
+void
 updatewindowtype(Client *c) {
 	Atom state = getatomprop(c, netatom[NetWMState]);
 	Atom wtype = getatomprop(c, netatom[NetWMWindowType]);
@@ -2796,11 +2835,9 @@ view(const Arg *arg) {
 
 void
 vmonoverride(XineramaScreenInfo **si, int *nmons) {
-	int i;
+	size_t i, maxi = sizeof(vmonconfig) / sizeof(VirtualMonitor);
 
-	for(i = 0; vmonconfigs[vmonconfigactive][i].width != 0 &&
-	           vmonconfigs[vmonconfigactive][i].height != 0;
-	    i++);
+	for(i = 0; i < maxi && vmonconfig[i].width != 0 && vmonconfig[i].height != 0; i++);
 	if(i == 0)
 		return;
 	*nmons = i;
@@ -2811,10 +2848,10 @@ vmonoverride(XineramaScreenInfo **si, int *nmons) {
 		die("fatal: could not malloc() %u bytes\n", sizeof(XineramaScreenInfo) * *nmons);
 
 	for(i = 0; i < *nmons; i++) {
-		(*si)[i].width = vmonconfigs[vmonconfigactive][i].width;
-		(*si)[i].height = vmonconfigs[vmonconfigactive][i].height;
-		(*si)[i].x_org = vmonconfigs[vmonconfigactive][i].x_org;
-		(*si)[i].y_org = vmonconfigs[vmonconfigactive][i].y_org;
+		(*si)[i].width = vmonconfig[i].width;
+		(*si)[i].height = vmonconfig[i].height;
+		(*si)[i].x_org = vmonconfig[i].x_org;
+		(*si)[i].y_org = vmonconfig[i].y_org;
 	}
 }
 
