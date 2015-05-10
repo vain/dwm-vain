@@ -243,6 +243,7 @@ static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
 static Monitor *recttomon(int x, int y, int w, int h);
+static void rearrangescreen(void);
 static void resize(Client *c, int x, int y, int w, int h, Bool interact);
 static void resizeclient(Client *c, int x, int y, int w, int h);
 static void resizemouse(const Arg *arg);
@@ -630,7 +631,6 @@ configure(Client *c) {
 
 void
 configurenotify(XEvent *e) {
-	Monitor *m;
 	XConfigureEvent *ev = &e->xconfigure;
 	Bool dirty;
 
@@ -639,16 +639,8 @@ configurenotify(XEvent *e) {
 		dirty = (sw != ev->width || sh != ev->height);
 		sw = ev->width;
 		sh = ev->height;
-		if(updategeom() || dirty) {
-			if(bc.drawable != 0)
-				XFreePixmap(dpy, bc.drawable);
-			bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
-			updatebars();
-			for(m = mons; m; m = m->next)
-				XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
-			focus(NULL);
-			arrange(NULL);
-		}
+		if(updategeom() || dirty)
+			rearrangescreen();
 	}
 }
 
@@ -1734,8 +1726,11 @@ propertynotify(XEvent *e) {
 	if((ev->window == root)) {
 		if(ev->atom == XA_WM_NAME)
 			updatestatus();
-		else if(ev->atom == dwmatom[DWMVirtualMonitors])
+		else if(ev->atom == dwmatom[DWMVirtualMonitors]) {
 			updatevmonconfig();
+			updategeom();
+			rearrangescreen();
+		}
 	}
 	else if(ev->state == PropertyDelete)
 		return; /* ignore */
@@ -1781,6 +1776,20 @@ recttomon(int x, int y, int w, int h) {
 			r = m;
 		}
 	return r;
+}
+
+void
+rearrangescreen(void) {
+	Monitor *m;
+
+	if(bc.drawable != 0)
+		XFreePixmap(dpy, bc.drawable);
+	bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
+	updatebars();
+	for(m = mons; m; m = m->next)
+		XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
+	focus(NULL);
+	arrange(NULL);
 }
 
 void
@@ -2734,7 +2743,6 @@ updatetitle(Client *c) {
 
 void
 updatevmonconfig(void) {
-	Monitor *m;
 	char buf[512] = "";
 	char *from, *to;
 	size_t i = 0, maxi = sizeof(vmonconfig) / sizeof(VirtualMonitor);
@@ -2750,7 +2758,7 @@ updatevmonconfig(void) {
 			if(to == NULL) {
 				fprintf(stderr, "dwm: Invalid vmonconfig\n");
 				memset(vmonconfig, 0, sizeof(vmonconfig));
-				goto updatescreen;
+				return;
 			}
 			*to = 0;
 			bm = XParseGeometry(from, &vmonconfig[i].x_org,
@@ -2761,25 +2769,12 @@ updatevmonconfig(void) {
 			   bm & XNegative || bm & YNegative) {
 				fprintf(stderr, "dwm: Invalid vmonconfig (says xlib)\n");
 				memset(vmonconfig, 0, sizeof(vmonconfig));
-				goto updatescreen;
+				return;
 			}
 		}
 	}
 	else
 		fprintf(stderr, "dwm: vmonconfig has been removed\n");
-
-updatescreen:
-	updategeom();
-
-	/* XXX copied from configurenotify, maybe refactor */
-	if(bc.drawable != 0)
-		XFreePixmap(dpy, bc.drawable);
-	bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
-	updatebars();
-	for(m = mons; m; m = m->next)
-		XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
-	focus(NULL);
-	arrange(NULL);
 }
 
 void
