@@ -2317,11 +2317,12 @@ sortmonitorsbyx(void) {
 	floorx = -1;
 	for(n = 0, a = mons; a; a = a->next, n++) {
 		/* Find monitor with the minimum X coordinate but this
-		 * coordinate must be greater than the last coordinate we saw
-		 * ("floorx"). And the monitor has still to be unassigned. */
+		 * coordinate must be greater than or equal to the last
+		 * coordinate we saw ("floorx") and the monitor has still to be
+		 * unassigned. */
 		minx = -1;
 		for(b = mons; b; b = b->next) {
-			if(b->mx > floorx && b->num == -1 && (minx == -1 || b->mx < minx)) {
+			if(b->mx >= floorx && b->num == -1 && (minx == -1 || b->mx < minx)) {
 				minx = b->mx;
 				minm = b;
 			}
