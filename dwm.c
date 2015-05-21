@@ -2339,7 +2339,6 @@ sortmonitorsbyx(void) {
 			 * that a bug occured. */
 			gappx = 30;
 			return;
-
 		}
 		minm->num = n;
 
