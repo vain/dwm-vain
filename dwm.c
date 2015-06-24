@@ -301,7 +301,7 @@ static int screenbarriers;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar geometry */
 static unsigned int *savedmontags = NULL;
-static int savedmontagsmaxnum = 0;
+static int savedmontagsmaxnum = -1;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
