@@ -64,6 +64,7 @@ enum { NetSupported, NetWMName, NetWMState,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
        NetWMWindowTypeDialog, NetClientList, NetLast };     /* EWMH atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
+enum { DWMVirtualMonitors, DWMLast }; /* atoms specific to dwm */
 enum { ClkClientWin, ClkRootWin, ClkLast };             /* clicks */
 enum BorderType { StateNormal, StateFocused, StateUrgent, StateAuto };
 
@@ -140,6 +141,11 @@ typedef struct {
 	const char *symbol;
 	void (*arrange)(Monitor *);
 } Layout;
+
+typedef struct {
+	unsigned int width, height;
+	int x_org, y_org;
+} VirtualMonitor;
 
 struct Monitor {
 	char ltsymbol[16];
@@ -237,6 +243,7 @@ static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
 static Monitor *recttomon(int x, int y, int w, int h);
+static void rearrangescreen(void);
 static void resize(Client *c, int x, int y, int w, int h, Bool interact);
 static void resizeclient(Client *c, int x, int y, int w, int h);
 static void resizemouse(const Arg *arg);
@@ -246,6 +253,7 @@ static void run(void);
 static void scan(void);
 static Bool sendevent(Client *c, Atom proto);
 static void sendmon(Client *c, Monitor *m);
+static void sendselmon(const Arg *arg);
 static void setborder(Client *c, enum BorderType state);
 static void setclientstate(Client *c, long state);
 static void setfocus(Client *c);
@@ -282,9 +290,11 @@ static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
 static void updatestatus(void);
 static void updatetitle(Client *c);
+static void updatevmonconfig(void);
 static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
+static void vmonoverride(XineramaScreenInfo **si, int *nmons);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
@@ -302,6 +312,7 @@ static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar geometry */
 static unsigned int *savedmontags = NULL;
 static int savedmontagsmaxnum = -1;
+static VirtualMonitor vmonconfig[32];
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
@@ -320,7 +331,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[PropertyNotify] = propertynotify,
 	[UnmapNotify] = unmapnotify
 };
-static Atom wmatom[WMLast], netatom[NetLast];
+static Atom dwmatom[DWMLast], wmatom[WMLast], netatom[NetLast];
 static BarContext bc;
 static Bool running = True;
 static Bool dorestart = False;
@@ -620,7 +631,6 @@ configure(Client *c) {
 
 void
 configurenotify(XEvent *e) {
-	Monitor *m;
 	XConfigureEvent *ev = &e->xconfigure;
 	Bool dirty;
 
@@ -629,16 +639,8 @@ configurenotify(XEvent *e) {
 		dirty = (sw != ev->width || sh != ev->height);
 		sw = ev->width;
 		sh = ev->height;
-		if(updategeom() || dirty) {
-			if(bc.drawable != 0)
-				XFreePixmap(dpy, bc.drawable);
-			bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
-			updatebars();
-			for(m = mons; m; m = m->next)
-				XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
-			focus(NULL);
-			arrange(NULL);
-		}
+		if(updategeom() || dirty)
+			rearrangescreen();
 	}
 }
 
@@ -1721,8 +1723,15 @@ propertynotify(XEvent *e) {
 	Window trans;
 	XPropertyEvent *ev = &e->xproperty;
 
-	if((ev->window == root) && (ev->atom == XA_WM_NAME))
-		updatestatus();
+	if((ev->window == root)) {
+		if(ev->atom == XA_WM_NAME)
+			updatestatus();
+		else if(ev->atom == dwmatom[DWMVirtualMonitors]) {
+			updatevmonconfig();
+			updategeom();
+			rearrangescreen();
+		}
+	}
 	else if(ev->state == PropertyDelete)
 		return; /* ignore */
 	else if((c = wintoclient(ev->window))) {
@@ -1767,6 +1776,20 @@ recttomon(int x, int y, int w, int h) {
 			r = m;
 		}
 	return r;
+}
+
+void
+rearrangescreen(void) {
+	Monitor *m;
+
+	if(bc.drawable != 0)
+		XFreePixmap(dpy, bc.drawable);
+	bc.drawable = XCreatePixmap(dpy, root, sw, bh, DefaultDepth(dpy, screen));
+	updatebars();
+	for(m = mons; m; m = m->next)
+		XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
+	focus(NULL);
+	arrange(NULL);
 }
 
 void
@@ -1920,6 +1943,30 @@ sendmon(Client *c, Monitor *m) {
 	attachstack(c);
 	focus(NULL);
 	arrange(NULL);
+}
+
+void
+sendselmon(const Arg *arg) {
+	Client *c;
+	Monitor *m;
+
+	for(m = mons; m; m = m->next) {
+		if(m == selmon)
+			continue;
+		while(m->clients) {
+			c = m->clients;
+			m->clients = c->next;
+			detachstack(c);
+			c->mon = selmon;
+			attach(c);
+			attachstack(c);
+		}
+	}
+
+	if(arg != NULL) {
+		focus(NULL);
+		arrange(NULL);
+	}
 }
 
 void
@@ -2082,8 +2129,8 @@ setup(void) {
 		                "disabling pointer barriers.\n");
 		screenbarriers = False;
 	}
-	updategeom();
 	/* init atoms */
+	dwmatom[DWMVirtualMonitors] = XInternAtom(dpy, "DWM_VIRTUAL_MONITORS", False);
 	wmatom[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
 	wmatom[WMDelete] = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
 	wmatom[WMState] = XInternAtom(dpy, "WM_STATE", False);
@@ -2096,6 +2143,9 @@ setup(void) {
 	netatom[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
 	netatom[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
 	netatom[NetClientList] = XInternAtom(dpy, "_NET_CLIENT_LIST", False);
+	/* init vmonconfig */
+	updatevmonconfig();
+	updategeom();
 	/* init cursors */
 	cursor[CurNormal] = XCreateFontCursor(dpy, XC_left_ptr);
 	cursor[CurResize] = XCreateFontCursor(dpy, XC_sizing);
@@ -2267,11 +2317,12 @@ sortmonitorsbyx(void) {
 	floorx = -1;
 	for(n = 0, a = mons; a; a = a->next, n++) {
 		/* Find monitor with the minimum X coordinate but this
-		 * coordinate must be greater than the last coordinate we saw
-		 * ("floorx"). And the monitor has still to be unassigned. */
+		 * coordinate must be greater than or equal to the last
+		 * coordinate we saw ("floorx") and the monitor has still to be
+		 * unassigned. */
 		minx = -1;
 		for(b = mons; b; b = b->next) {
-			if(b->mx > floorx && b->num == -1 && (minx == -1 || b->mx < minx)) {
+			if(b->mx >= floorx && b->num == -1 && (minx == -1 || b->mx < minx)) {
 				minx = b->mx;
 				minm = b;
 			}
@@ -2289,7 +2340,6 @@ sortmonitorsbyx(void) {
 			 * that a bug occured. */
 			gappx = 30;
 			return;
-
 		}
 		minm->num = n;
 
@@ -2557,8 +2607,7 @@ updategeom(void) {
 
 	if(XineramaIsActive(dpy)) {
 		int i, j, n, nn;
-		Client *c;
-		Monitor *m;
+		Monitor *m, *mons2;
 		XineramaScreenInfo *info = XineramaQueryScreens(dpy, &nn);
 		XineramaScreenInfo *unique = NULL;
 
@@ -2570,49 +2619,33 @@ updategeom(void) {
 			if(isuniquegeom(unique, j, &info[i]))
 				memcpy(&unique[j++], &info[i], sizeof(XineramaScreenInfo));
 		XFree(info);
-		nn = j;
-		if(n <= nn) {
-			for(i = 0; i < (nn - n); i++) { /* new monitors available */
-				for(m = mons; m && m->next; m = m->next);
-				if(m)
-					m->next = createmon();
-				else
-					mons = createmon();
-			}
-			for(i = 0, m = mons; i < nn && m; m = m->next, i++)
-				if(i >= n
-				|| (unique[i].x_org != m->mx || unique[i].y_org != m->my
-				    || unique[i].width != m->mw || unique[i].height != m->mh))
-				{
-					dirty = True;
-					m->num = i;  /* might get reassigned by sortmonitorsbyx() */
-					m->mx = m->wx = unique[i].x_org;
-					m->my = m->wy = unique[i].y_org;
-					m->mw = m->ww = unique[i].width;
-					m->mh = m->wh = unique[i].height;
-					m->lmx = m->wx + (int)(0.5 * m->ww);
-					m->lmy = m->wy + (int)(0.5 * m->wh);
-					updatebarpos(m);
-				}
-		}
-		else { /* less monitors available nn < n */
-			for(i = nn; i < n; i++) {
-				for(m = mons; m && m->next; m = m->next);
-				while(m->clients) {
-					dirty = True;
-					c = m->clients;
-					m->clients = c->next;
-					detachstack(c);
-					c->mon = mons;
-					attach(c);
-					attachstack(c);
-				}
-				if(m == selmon)
-					selmon = mons;
-				cleanupmon(m);
-			}
+		vmonoverride(&unique, &j);
+
+		/* Move all clients to newly created mons2, kill old monitors. */
+		dirty = True;
+		selmon = mons2 = createmon();
+		sendselmon(NULL);
+		while(mons)
+			cleanupmon(mons);
+
+		/* Set monitor geoms and create additional monitors. */
+		for(i = 0, m = mons2; i < j; i++) {
+			m->num = i;  /* might get reassigned by sortmonitorsbyx() */
+			m->mx = m->wx = unique[i].x_org;
+			m->my = m->wy = unique[i].y_org;
+			m->mw = m->ww = unique[i].width;
+			m->mh = m->wh = unique[i].height;
+			m->lmx = m->wx + (int)(0.5 * m->ww);
+			m->lmy = m->wy + (int)(0.5 * m->wh);
+			updatebarpos(m);
+
+			if(i != j - 1)
+				m->next = createmon();
+			m = m->next;
 		}
 		free(unique);
+
+		mons = mons2;
 	}
 	else
 	{
@@ -2710,6 +2743,42 @@ updatetitle(Client *c) {
 }
 
 void
+updatevmonconfig(void) {
+	char buf[512] = "";
+	char *from, *to;
+	size_t i = 0, maxi = sizeof(vmonconfig) / sizeof(VirtualMonitor);
+	int bm;
+
+	memset(vmonconfig, 0, sizeof(vmonconfig));
+
+	if(gettextprop(root, dwmatom[DWMVirtualMonitors], buf, sizeof(buf))) {
+		fprintf(stderr, "dwm: Read vmonconfig '%s'\n", buf);
+
+		for(from = buf; *from != 0 && i < maxi; from = ++to, i++) {
+			to = strchr(from, ';');
+			if(to == NULL) {
+				fprintf(stderr, "dwm: Invalid vmonconfig\n");
+				memset(vmonconfig, 0, sizeof(vmonconfig));
+				return;
+			}
+			*to = 0;
+			bm = XParseGeometry(from, &vmonconfig[i].x_org,
+			                          &vmonconfig[i].y_org,
+			                          &vmonconfig[i].width,
+			                          &vmonconfig[i].height);
+			if(!(bm & XValue && bm & YValue && bm & WidthValue && bm & HeightValue) ||
+			   bm & XNegative || bm & YNegative) {
+				fprintf(stderr, "dwm: Invalid vmonconfig (says xlib)\n");
+				memset(vmonconfig, 0, sizeof(vmonconfig));
+				return;
+			}
+		}
+	}
+	else
+		fprintf(stderr, "dwm: vmonconfig has been removed\n");
+}
+
+void
 updatewindowtype(Client *c) {
 	Atom state = getatomprop(c, netatom[NetWMState]);
 	Atom wtype = getatomprop(c, netatom[NetWMWindowType]);
@@ -2758,6 +2827,28 @@ view(const Arg *arg) {
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
 	focus(NULL);
 	arrange(selmon);
+}
+
+void
+vmonoverride(XineramaScreenInfo **si, int *nmons) {
+	size_t i, maxi = sizeof(vmonconfig) / sizeof(VirtualMonitor);
+
+	for(i = 0; i < maxi && vmonconfig[i].width != 0 && vmonconfig[i].height != 0; i++);
+	if(i == 0)
+		return;
+	*nmons = i;
+
+	free(*si);
+	*si = (XineramaScreenInfo *)malloc(sizeof(XineramaScreenInfo) * *nmons);
+	if(*si == NULL)
+		die("fatal: could not malloc() %u bytes\n", sizeof(XineramaScreenInfo) * *nmons);
+
+	for(i = 0; i < *nmons; i++) {
+		(*si)[i].width = vmonconfig[i].width;
+		(*si)[i].height = vmonconfig[i].height;
+		(*si)[i].x_org = vmonconfig[i].x_org;
+		(*si)[i].y_org = vmonconfig[i].y_org;
+	}
 }
 
 Client *
