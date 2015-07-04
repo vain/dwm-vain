@@ -84,5 +84,6 @@ This fork is based on dwm-6.1. Major changes since then:
 	- Support for useless gaps
 - Per-rule resize hints
 - dirtomon is based on geometry rather than internal indices
+- "virtual monitors", kind of similar to splitwm or fakexinerama
 
 For a full list, see the git log: "git log 1bdb393..HEAD"
