@@ -94,6 +94,7 @@ struct Client {
 	int bw, oldbw;
 	int smonn;
 	unsigned int tags, stags;
+	int globalnum;
 	Bool isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen,
 	     sizehints, wassaved;
 	Client *next;
@@ -239,6 +240,7 @@ static void movestack(const Arg *arg);
 static Client *nexttiled(Client *c);
 static void placementrestore(const Arg *arg);
 static void placementsave(const Arg *arg);
+static int placementsort(const void *p1, const void *p2);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
@@ -1635,6 +1637,9 @@ placementrestore(const Arg *arg) {
 		}
 	}
 
+	/* Sort client list according to globalnum. */
+	qsort(clist, n, sizeof(Client *), placementsort);
+
 	/* Restore tags and move the client to the old monitor. Note that we
 	 * traverse the array from end to front. This will retain the order
 	 * in the linked lists. */
@@ -1673,14 +1678,20 @@ void
 placementsave(const Arg *arg) {
 	Client *c;
 	Monitor *m;
+	int i;
 
 	/* Save monitor number and tags of each client. This allows for
-	 * restoration in placementrestore(). */
+	 * restoration in placementrestore(). Also save the "global number"
+	 * of this client which allows for restoration of stack orders (this
+	 * number starts at 1, so un-saved clients always have 0). */
+	i = 1;
 	for(m = mons; m; m = m->next) {
 		for(c = m->clients; c; c = c->next) {
 			c->smonn = c->mon->num;
 			c->stags = c->tags;
 			c->wassaved = True;
+			c->globalnum = i;
+			i++;
 		}
 	}
 
@@ -1707,6 +1718,17 @@ placementsave(const Arg *arg) {
 	/* Just a quick hint. */
 	strcpy(stext, "placement saved in memory");
 	drawbar(selmon);
+}
+
+int
+placementsort(const void *p1, const void *p2)
+{
+	Client *c1 = *(Client **)p1, *c2 = *(Client **)p2;
+	if(c1->globalnum < c2->globalnum)
+		return -1;
+	if(c1->globalnum > c2->globalnum)
+		return 1;
+	return 0;
 }
 
 void
