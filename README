@@ -73,6 +73,7 @@ This fork is based on dwm-6.1. Major changes since then:
 	- modgap: Modify gap size at runtime
 	- shiftview: View adjacent tags
 	- tagrel: Send a client to adjacent tags
+	- clearurgentvis: Clear urgency hint on all visible clients
 - Pointer barriers around the working area
 - drawbar:
 	- Only show occupied tags (allows you to use *A LOT* of tags)

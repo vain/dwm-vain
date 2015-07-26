@@ -195,6 +195,7 @@ static void cleanupmon(Monitor *mon);
 static void cleanup(void);
 static void cleanupfont(FontInfo *fi);
 static void clearurgent(Client *c);
+static void clearurgentvis(const Arg *arg);
 static void clientmessage(XEvent *e);
 static void configure(Client *c);
 static void configurenotify(XEvent *e);
@@ -590,6 +591,21 @@ clearurgent(Client *c) {
 	wmh->flags &= ~XUrgencyHint;
 	XSetWMHints(dpy, c->win, wmh);
 	XFree(wmh);
+}
+
+void
+clearurgentvis(const Arg *arg) {
+	Monitor *m;
+	Client *c;
+
+	for(m = mons; m; m = m->next) {
+		for(c = m->clients; c; c = c->next) {
+			if(ISVISIBLE(c) && c->isurgent) {
+				clearurgent(c);
+				setborder(c, StateAuto);
+			}
+		}
+	}
 }
 
 void
