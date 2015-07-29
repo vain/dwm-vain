@@ -756,6 +756,7 @@ createmon(void) {
 
 	if(!(m = (Monitor *)calloc(1, sizeof(Monitor))))
 		die("fatal: could not malloc() %u bytes\n", sizeof(Monitor));
+	/* May get reassigned later by startuptags_multi. */
 	m->tagset[0] = m->tagset[1] = startuptags;
 	m->mfact = mfact;
 	m->nmaster = nmaster;
@@ -2638,14 +2639,14 @@ updateclientlist() {
 
 Bool
 updategeom(void) {
+	int i, j, n, nn;
+	Monitor *m, *mons2;
 	Bool dirty = False;
 
 	destroyallbarriers();
 	prevmon = NULL;
 
 	if(XineramaIsActive(dpy)) {
-		int i, j, n, nn;
-		Monitor *m, *mons2;
 		XineramaScreenInfo *info = XineramaQueryScreens(dpy, &nn);
 		XineramaScreenInfo *unique = NULL;
 
@@ -2703,6 +2704,22 @@ updategeom(void) {
 
 	sortmonitorsbyx();
 	createallbarriers();
+
+	/* Count actual number of monitors (may differ from real number due
+	 * to vmonoverride()), then assign each monitor its value of
+	 * startuptags_multi. Only do the whole thing if there is more than
+	 * one monitor. */
+	if(dirty && mons->next) {
+		for(m = mons, j = 0; m; j++, m = m->next);
+		for(i = 0; i < j; i++) {
+			for(m = mons; m; m = m->next) {
+				if(m->num == i &&
+				   i < sizeof(startuptags_multi) / sizeof(startuptags_multi[0])) {
+					m->tagset[0] = m->tagset[1] = startuptags_multi[i];
+				}
+			}
+		}
+	}
 
 	return dirty;
 }

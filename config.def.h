@@ -22,6 +22,10 @@ static const Bool barriers          = False;    /* Put pointer barriers around t
 /* tagging */
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 static const unsigned int startuptags = 1;  /* Tags selected on a new monitor */
+static const unsigned int startuptags_multi[] = {
+	/* Tags selected on a new monitor if there is more than one monitor */
+	1, 2, 8, 16
+};
 static const unsigned int hiddentags = 0;   /* Tags never to be shown in the taglist */
 
 static const Rule rules[] = {
